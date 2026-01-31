@@ -1,4 +1,4 @@
-name: Android CI
+name: Android CI / CD
 
 on:
   push:
@@ -7,20 +7,11 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-
+  start:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up JDK 25
-      uses: actions/setup-java@v4
-      with:
-        java-version: '25'
-        distribution: 'temurin'
-        cache: gradle
+      - name: Checkout the code
+        uses: actions/checkout@v2
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Build with Gradle
-      run: ./gradlew build
+      - name: Run sample script
+        uses: echo Hello, world
