@@ -7,9 +7,6 @@ enum class QuestionCategory {
     HUNTING_PRACTICES
 }
 
-
-
-
 data class Question(
     val id: String,
     val category: QuestionCategory,
@@ -24,10 +21,6 @@ data class Option(
     val text: String
 )
 
-data class QuestionsWithOptions(
-    val question: Question,
-    val options: List<Option>
-)
 
 
 
