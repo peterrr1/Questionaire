@@ -192,7 +192,7 @@ fun AttemptHeader(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(
-            text = categoryToDisplayName(attempt.quizType),
+            text = attempt.quizType.displayName,
             style = MaterialTheme.typography.titleMedium
         )
         Text(
@@ -201,6 +201,10 @@ fun AttemptHeader(
         )
         Text(
             text = "Finished: ${attempt.endTime?.formatToDisplay() ?: "—"}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = "Score: ${attempt.score} / ${attempt.result.size}",
             style = MaterialTheme.typography.bodyMedium
         )
         DropdownMenu(
@@ -264,13 +268,15 @@ private fun Date.formatToDisplay(): String {
     val formatter = SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault())
     return formatter.format(this)
 }
-
+/*
 private fun categoryToDisplayName(quizType: QuestionCategory): String {
     return when (quizType) {
         QuestionCategory.HUNTING_ZOOLOGY -> "Hunting zoology"
         QuestionCategory.LAW_AND_ADMINISTRATION -> "Law and administration"
         QuestionCategory.HUNTING_PRACTICES -> "Hunting practices"
+        QuestionCategory.ALL_CATEGORIES -> "All categories"
     }
 }
+ */
 
 

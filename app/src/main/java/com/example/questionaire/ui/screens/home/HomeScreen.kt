@@ -1,6 +1,7 @@
 package com.example.questionaire.ui.screens.home
 
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,17 +23,22 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.questionaire.R
 import com.example.questionaire.ui.theme.HuntingQuizTheme
+import kotlinx.coroutines.flow.forEach
 
 @Composable
 fun HomeScreen(
@@ -40,6 +46,8 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     homeViewModel: HomeViewModel = hiltViewModel()
 ) {
+
+    val quizTypes by homeViewModel.quizTypes.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = { HomeTopBar() },
@@ -52,7 +60,7 @@ fun HomeScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
-            homeViewModel.quizTypes.forEach { quizType ->
+            quizTypes.forEach { quizType ->
                 HomeCard(
                     drawable = R.drawable.hunting_practices,
                     text = quizType.displayName,
@@ -75,7 +83,7 @@ fun HomeCard(
 ) {
     Surface(
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.onBackground,
+        color = MaterialTheme.colorScheme.secondaryContainer,
         modifier = modifier
             .padding(10.dp)
             .clickable(onClick = navigate)
@@ -94,12 +102,14 @@ fun HomeCard(
             Text(
                 text = text,
                 style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
                     .weight(1f)
             )
+            /*
             IconButton(
                 onClick = {  },
                 modifier = Modifier.size(56.dp) // optional, keeps material touch target
@@ -110,6 +120,7 @@ fun HomeCard(
                     modifier = Modifier.size(32.dp)
                 )
             }
+            */
         }
     }
 }
@@ -129,28 +140,6 @@ fun HomeTopBar(
             }
         )
         HorizontalDivider(modifier = Modifier.fillMaxWidth())
-    }
-}
-
-
-
-@Preview(uiMode = UI_MODE_NIGHT_YES)
-@Composable
-fun HomeCardPreview() {
-    HuntingQuizTheme {
-        HomeCard(
-            drawable = R.drawable.hunting_practices,
-            text = "Hinting practices",
-            navigate = {}
-        )
-    }
-}
-
-@Preview(uiMode = UI_MODE_NIGHT_YES)
-@Composable
-fun HomeTopBarPreview() {
-    HuntingQuizTheme {
-        HomeTopBar()
     }
 }
 

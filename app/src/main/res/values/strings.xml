@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">Questionaire</string>
     <string name="can_t_load_the_questions">Can\'t load the questions</string>
-    <string name="hunting_practices">Hunting practices</string>
-    <string name="vadaszat_gyakorlata">A vadászat gyakorlata</string>
+    <string name="hunting_practices">A vadászat gyakorlata</string>
+    <string name="law_and_administration">Jogi és igazgatási kérdések</string>
+    <string name="hunting_zoology">Vadászati álattan</string>
+    <string name="all_categories">Összes kategória</string>
 </resources>

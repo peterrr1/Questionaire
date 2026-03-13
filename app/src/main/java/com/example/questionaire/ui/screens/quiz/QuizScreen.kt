@@ -1,16 +1,21 @@
 package com.example.questionaire.ui.screens.quiz
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,12 +40,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -53,6 +64,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.questionaire.components.common.LoadingState
 import com.example.questionaire.model.Question
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,7 +79,7 @@ fun QuizScreen(
 ) {
 
     val uiState: QuizUIState by viewModel.uiState.collectAsStateWithLifecycle()
-    val quizTitle: String = viewModel.quizTypeDisplayName
+
 
 
     when (val state = uiState) {
@@ -84,7 +98,7 @@ fun QuizScreen(
             Scaffold(
                 topBar = {
                     QuizTopBar(
-                        title = quizTitle,
+                        title = viewModel.quizTypeDisplayName.displayName,
                         navigate = onNavigateBack
                     )
                 }
@@ -127,6 +141,12 @@ fun QuizScreen(
                                         questionId = state.questions[page].id,
                                         optionId = optionId
                                     )
+                                },
+                                onCheckAnswer = { optionId ->
+                                    viewModel.onCheckAnswer(
+                                        state.questions[page].id,
+                                        optionId = optionId
+                                    )
                                 }
                             )
                         }
@@ -166,12 +186,13 @@ fun QuizScreen(
 @Composable
 fun QuestionElement(
     onSelectOption: (String) -> Unit,
+    onCheckAnswer: (String) -> Boolean,
     question: Question,
     modifier: Modifier = Modifier
 ) {
 
     var selectedOptionId by rememberSaveable { mutableStateOf<String?>(null) }
-
+    var showAnswers by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -181,6 +202,7 @@ fun QuestionElement(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+
         Text(
             text = question.text,
             modifier = Modifier.fillMaxWidth(),
@@ -192,17 +214,24 @@ fun QuestionElement(
         Column {
             question.options.forEach { option ->
                 val isSelected: Boolean = selectedOptionId == option.id
+                val isCorrect: Boolean = onCheckAnswer(option.id)
 
-                val backgroundColor by animateColorAsState(
-                    targetValue = if (isSelected)
-                        MaterialTheme.colorScheme.primaryContainer
-                    else
-                        MaterialTheme.colorScheme.secondaryContainer,
-                    label = "bgColor"
+                val optionBackgroundColor by animateColorAsState(
+                    targetValue =
+                        if (isCorrect && showAnswers)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else if (showAnswers && !isCorrect)
+                            MaterialTheme.colorScheme.errorContainer
+                        else
+                            MaterialTheme.colorScheme.secondaryContainer,
+                label = "bgColor"
                 )
 
                 val borderWidth by animateDpAsState(
-                    targetValue = if (isSelected) 2.dp else 0.dp,
+                    targetValue =
+                        if (isSelected)
+                            2.dp
+                        else 0.dp,
                     label = "border"
                 )
 
@@ -215,9 +244,11 @@ fun QuestionElement(
                     onClick = {
                         selectedOptionId = option.id
                         onSelectOption(option.id)
+
                     },
-                    border = if (borderWidth > 0.dp)
-                        BorderStroke(borderWidth, MaterialTheme.colorScheme.primary)
+                    border = if (borderWidth > 0.dp) {
+                        BorderStroke(borderWidth, MaterialTheme.colorScheme.primary,)
+                    }
                     else null,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -228,7 +259,7 @@ fun QuestionElement(
                             scaleY = scale
                         },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = backgroundColor
+                        containerColor = optionBackgroundColor
                     ),
                     contentPadding = PaddingValues(8.dp))
                 {
@@ -244,6 +275,30 @@ fun QuestionElement(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.padding(vertical = 20.dp))
+
+        AnimatedVisibility(
+            visible = selectedOptionId != null,
+            enter = fadeIn() + expandHorizontally(),
+            exit = fadeOut() + shrinkHorizontally()
+        ) {
+
+            Button(
+                onClick = {
+                   showAnswers = !showAnswers
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                if (showAnswers)
+                    Text("Reset")
+                else
+                    Text("Show answers")
+            }
+        }
+
     }
 }
 
@@ -267,6 +322,3 @@ fun QuizTopBar(
         }
     )
 }
-
-
-

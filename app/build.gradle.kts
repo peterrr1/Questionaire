@@ -67,6 +67,8 @@ dependencies {
     // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.foundation)
     // If this project uses any Kotlin source, use Kotlin Symbol Processing (KSP)
     // See Add the KSP plugin to your project
     ksp(libs.androidx.room.compiler)

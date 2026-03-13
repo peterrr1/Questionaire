@@ -25,6 +25,8 @@ retrofit2KotlinxSerializationConverter = "1.0.0"
 roomRuntime = "2.8.4"
 foundation = "1.10.2"
 retrofitMoshiConverter = "3.0.0"
+uiGraphics = "1.10.3"
+foundationVersion = "1.10.3"
 
 
 
@@ -67,6 +69,8 @@ androidx-compose-foundation = { group = "androidx.compose.foundation", name = "f
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 retrofit2-kotlinx-serialization-converter = { module = "com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter", version.ref = "retrofit2KotlinxSerializationConverter" }
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "uiGraphics" }
+androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundationVersion" }
 
 
 [plugins]

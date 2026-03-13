@@ -7,8 +7,9 @@ import java.util.UUID
 
 // Questions
 
-
+/*
 private val questions = listOf(
+
     Question(
         id = UUID.randomUUID().toString(),
         category = QuestionCategory.HUNTING_PRACTICES,
@@ -29,6 +30,7 @@ private val questions = listOf(
         ),
         correctOptionId = "1"
     ),
+
     Question(
         id = UUID.randomUUID().toString(),
         category = QuestionCategory.HUNTING_PRACTICES,
@@ -49,6 +51,7 @@ private val questions = listOf(
         ),
         correctOptionId = "3"
     ),
+
     Question(
         id = UUID.randomUUID().toString(),
         category = QuestionCategory.HUNTING_PRACTICES,
@@ -69,6 +72,7 @@ private val questions = listOf(
         ),
         correctOptionId = "2"
     ),
+
     Question(
         id = UUID.randomUUID().toString(),
         category = QuestionCategory.LAW_AND_ADMINISTRATION,
@@ -90,5 +94,6 @@ private val questions = listOf(
         correctOptionId = "3"
     ),
 )
+*/
+val questionsWithOptions: List<Question> = emptyList()
 
-val questionsWithOptions: List<Question> = questions

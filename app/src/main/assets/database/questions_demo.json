@@ -1,0 +1,69 @@
+[
+  {
+    "type": "SINGLE_OPTION",
+    "category": "JOGI_ÉS_IGAZGATÁSI_KÉRDÉSEK",
+    "text": "Kié hazánkban a vad tulajdonjoga?",
+    "options": [
+      {"id": 1, "text": "Vadászatra jogosult"},
+      {"id": 2, "text": "Földtulajdonhoz kötött"},
+      {"id": 3, "text": "Állam"}
+    ],
+    "answer": 3
+  },
+  {
+    "type": "SINGLE_OPTION",
+    "category": "VADÁSZATI_ÁLLATTAN",
+    "text": "Hogyan jönnek világra a mezei nyúlfiak?",
+    "options": [
+      {"id": 1, "text": "Szőrösen, nyitott szemmel születnek, majd a vacokban maradnak"},
+      {"id": 2, "text": "Szőrösen, nyitott szemmel születnek, majd azonnal követik anyjukat"},
+      {"id": 3, "text": "Csupaszon, zárt szemmel születnek, majd a vacokban maradnak"}
+    ],
+    "answer": 2
+  },
+  {
+    "type": "SINGLE_OPTION",
+    "category": "JOGI_ÉS_IGAZGATÁSI_KÉRDÉSEK",
+    "text": "Milyen formában gyakorolható a vadászati jog?",
+    "options": [
+      {"id": 1, "text": "Önálló vadászati jog"},
+      {"id": 2, "text": "Társult vadászati jog"},
+      {"id": 3, "text": "Mindkettő"}
+    ],
+    "answer": 3
+  },
+  {
+    "type": "SINGLE_OPTION",
+    "category": "JOGI_ÉS_IGAZGATÁSI_KÉRDÉSEK",
+    "text": "Mekkora hazánkban a vadászterület minimális nagysága?",
+    "options": [
+      {"id": 1, "text": "300 ha"},
+      {"id": 2, "text": "3000 ha"},
+      {"id": 3, "text": "1000 ha"}
+    ],
+    "answer": 2
+  },
+  {
+    "type": "SINGLE_OPTION",
+    "category": "JOGI_ÉS_IGAZGATÁSI_KÉRDÉSEK",
+    "text": "Mely szervezet az elsőfokú vadászati hatóság hazánkban?",
+    "options": [
+      {"id": 1, "text": "Vármegyei vadászati hatóság"},
+      {"id": 2, "text": "Vármegyei vadászkamara"},
+      {"id": 3, "text": "Vármegyei vadászszövetség"}
+    ],
+    "answer": 1,
+    ""
+  },
+  {
+    "type": "MULTI_OPTION",
+    "category": "JOGI_ÉS_IGAZGATÁSI_KÉRDÉSEK",
+    "text": "Mely szervezet az elsőfokú vadászati hatóság hazánkban?",
+    "options": [
+      {"id": 1, "text": "Vármegyei vadászati hatóság"},
+      {"id": 2, "text": "Vármegyei vadászkamara"},
+      {"id": 3, "text": "Vármegyei vadászszövetség"}
+    ],
+    "answer": [1, 2]
+  }
+]

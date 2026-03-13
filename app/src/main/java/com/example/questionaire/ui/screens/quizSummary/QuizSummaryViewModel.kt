@@ -38,7 +38,8 @@ data class QuizAttemptSnapshot(
     val quizType: QuestionCategory,
     val startTime: Date,
     var endTime: Date?,
-    var result: List<QuizResultSnapshot>
+    var result: List<QuizResultSnapshot>,
+    var score: Int
 )
 
 @HiltViewModel
@@ -62,7 +63,8 @@ class QuizSummaryViewModel @Inject constructor(
                             quizType = attempt.quizType,
                             startTime = attempt.startTime,
                             endTime = attempt.endTime,
-                            result = attempt.result
+                            result = attempt.result,
+                            score = attempt.score
                         )
                     }
                     QuizResultsUIState.HasResults(

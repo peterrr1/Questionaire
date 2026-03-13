@@ -1,19 +1,21 @@
 package com.example.questionaire.ui.screens.quiz
 
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.questionaire.R
-import com.example.questionaire.data.local.db.entities.OptionSnapshot
+import com.example.questionaire.data.local.db.entities.Option
 import com.example.questionaire.utils.Result
 import com.example.questionaire.data.local.db.entities.QuizAttempt
 import com.example.questionaire.data.local.db.entities.QuizResultSnapshot
 import com.example.questionaire.data.local.questions.QuestionsRepository
-import com.example.questionaire.di.repositories.NetworkRepository
 import com.example.questionaire.di.repositories.QuizAttemptRepository
 import com.example.questionaire.model.Question
 import com.example.questionaire.model.QuestionCategory
 import com.example.questionaire.ui.screens.home.HomeViewModel
+import com.example.questionaire.ui.screens.quizSummary.QuestionResultCard
 import com.example.questionaire.utils.ErrorMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,7 +73,7 @@ class QuizViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val questionsRepository: QuestionsRepository,
     private val quizAttemptRepository: QuizAttemptRepository,
-    private val networkRepository: NetworkRepository
+
 ) : ViewModel() {
 
     private val _quizType: String = savedStateHandle["quizType"]
@@ -91,11 +93,12 @@ class QuizViewModel @Inject constructor(
             _viewModelState.value.toUIState(),
         )
 
-    val quizTypeDisplayName: String = stringToDisplayName(_quizType)
+
+    val quizTypeDisplayName: QuestionCategory = QuestionCategory.fromRouteParam(_quizType)
 
 
     init {
-        loadQuestionCategoryFromNetworkAPI(_quizType)
+        loadQuestionCategory(QuestionCategory.fromRouteParam(_quizType))
     }
 
 
@@ -103,22 +106,30 @@ class QuizViewModel @Inject constructor(
 
     private val currentAttempt: QuizAttempt =
         QuizAttempt(
-            quizType = stringToCategory(_quizType),
+            quizType = QuestionCategory.fromRouteParam(_quizType),
             startTime = Date(),
-            endTime = null
+            endTime = null,
+            score = 0
         )
 
-    fun loadQuestionCategoryFromNetworkAPI(category: String) {
+    fun loadQuestionCategory(category: QuestionCategory) {
         _viewModelState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
-            val result = networkRepository.getAllQuestion(category)
+            println(category)
+            val result = questionsRepository.getQuestionCategory(category)
+//            val result = if (category == QuestionCategory.ALL_CATEGORIES) {
+//                questionsRepository.getAllQuestions()
+//            } else {
+//                questionsRepository.getQuestionCategory(category)
+//            }
             _viewModelState.update {
                 when (result) {
                     is Result.Success -> it.copy(
                         questions = result.data,
                         isLoading = false
                     )
+
                     is Result.Error -> {
                         val errorMessages = it.errorMessages + ErrorMessage(
                             id = UUID.randomUUID().mostSignificantBits,
@@ -131,29 +142,8 @@ class QuizViewModel @Inject constructor(
         }
     }
 
-
-    fun loadQuestionCategory(category: QuestionCategory) {
-        _viewModelState.update { it.copy(isLoading = true) }
-
-        viewModelScope.launch {
-            val result = questionsRepository.getQuestionCategory(category)
-            _viewModelState.update {
-                when (result) {
-                    is Result.Success -> it.copy(
-                        questions = result.data,
-                        isLoading = false
-                    )
-
-                    is Result.Error -> {
-                        val errorMessages = it.errorMessages + ErrorMessage(
-                            id = UUID.randomUUID().mostSignificantBits,
-                            messageId = R.string.can_t_load_the_questions
-                        )
-                        it.copy(errorMessages = errorMessages, isLoading = false)
-                    }
-                }
-            }
-        }
+    fun onCheckAnswer(questionId: String, optionId: String): Boolean {
+        return _viewModelState.value.questions?.find { it.id == questionId }?.correctOptionId == optionId
     }
 
     fun onSelectOption(questionId: String, optionId: String) {
@@ -166,14 +156,18 @@ class QuizViewModel @Inject constructor(
 
         viewModelScope.launch {
             currentAttempt.endTime = Date()
+
             currentAttempt.result = _viewModelState.value.questions!!.mapIndexed { index, question ->
+                if (question.correctOptionId == _selectedQuestions[question.id]) {
+                    currentAttempt.score += 1
+                }
                 QuizResultSnapshot(
                     questionId = question.id,
                     questionText = question.text,
                     correctOptionId = question.correctOptionId,
                     chosenOptionId = _selectedQuestions[question.id],
                     optionSnapshots = question.options.map {
-                        OptionSnapshot(it.id, it.text)
+                        Option(it.id, it.text)
                     },
                     questionOrder = index
                 )
@@ -181,23 +175,4 @@ class QuizViewModel @Inject constructor(
             quizAttemptRepository.insertAttempt(currentAttempt)
         }
     }
-
-    private fun stringToCategory(quizType: String): QuestionCategory {
-        return when (quizType) {
-            "hunting_zoology" -> QuestionCategory.HUNTING_ZOOLOGY
-            "law_and_administration" -> QuestionCategory.LAW_AND_ADMINISTRATION
-            "hunting_practices" -> QuestionCategory.HUNTING_PRACTICES
-            else -> QuestionCategory.HUNTING_PRACTICES
-        }
-    }
-
-    private fun stringToDisplayName(quizType: String): String {
-        return when (quizType) {
-            "hunting_zoology" -> HomeViewModel.QuizType.HUNTING_ZOOLOGY.displayName
-            "law_and_administration" -> HomeViewModel.QuizType.LAW_AND_ADMINISTRATION.displayName
-            "hunting_practices" -> HomeViewModel.QuizType.HUNTING_PRACTICES.displayName
-            else -> "Unknown quiz type"
-        }
-    }
-
 }

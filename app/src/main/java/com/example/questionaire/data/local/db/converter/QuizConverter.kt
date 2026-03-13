@@ -2,7 +2,7 @@ package com.example.questionaire.data.local.db.converter
 
 import androidx.room.ProvidedTypeConverter
 import androidx.room.TypeConverter
-import com.example.questionaire.data.local.db.entities.OptionSnapshot
+import com.example.questionaire.data.local.db.entities.Option
 import com.example.questionaire.data.local.db.entities.QuizResultSnapshot
 import com.example.questionaire.model.QuestionCategory
 import com.squareup.moshi.Moshi
@@ -15,18 +15,19 @@ class QuizConverters (
 ) {
 
     @TypeConverter
-    fun optionsSnapshotToJson(options: List<OptionSnapshot>): String {
-        return moshi.adapter<List<OptionSnapshot>>(
-            Types.newParameterizedType(List::class.java, OptionSnapshot::class.java)
+    fun optionToJson(options: List<Option>): String {
+        return moshi.adapter<List<Option>>(
+            Types.newParameterizedType(List::class.java, Option::class.java)
         ).toJson(options)
     }
 
     @TypeConverter
-    fun jsonToOptionsSnapshot(json: String): List<OptionSnapshot> {
-        return moshi.adapter<List<OptionSnapshot>>(
-            Types.newParameterizedType(List::class.java, OptionSnapshot::class.java)
+    fun jsonToOption(json: String): List<Option> {
+        return moshi.adapter<List<Option>>(
+            Types.newParameterizedType(List::class.java, Option::class.java)
         ).fromJson(json) ?: emptyList()
     }
+
 
     @TypeConverter
     fun quizResultSnapshotToJson(results: List<QuizResultSnapshot>): String {
@@ -53,22 +54,12 @@ class QuizConverters (
     }
 
     @TypeConverter
-    fun stringToQuestionCategory(value: String?): QuestionCategory {
-        return when (value) {
-            "hunting_zoology" -> QuestionCategory.HUNTING_ZOOLOGY
-            "law_and_administration" -> QuestionCategory.LAW_AND_ADMINISTRATION
-            "hunting_practices" -> QuestionCategory.HUNTING_PRACTICES
-            else -> QuestionCategory.HUNTING_PRACTICES
-        } ?: QuestionCategory.HUNTING_PRACTICES
+    fun stringToQuestionCategory(value: String): QuestionCategory {
+        return QuestionCategory.fromDbValue(value)
     }
 
     @TypeConverter
-    fun questionCategoryToString(category: QuestionCategory?): String {
-        return when (category) {
-            QuestionCategory.HUNTING_ZOOLOGY -> "hunting_zoology"
-            QuestionCategory.LAW_AND_ADMINISTRATION -> "law_and_administration"
-            QuestionCategory.HUNTING_PRACTICES -> "hunting_practices"
-            else -> "hunting_practices"
-        } ?: "hunting_practices"
+    fun questionCategoryToString(category: QuestionCategory): String {
+        return category.routeParam
     }
 }

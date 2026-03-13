@@ -12,7 +12,8 @@ data class QuizAttempt(
     val quizType: QuestionCategory,
     val startTime: Date,
     var endTime: Date?, // Can't be null, it's only saved if the quiz has finished
-    var result: List<QuizResultSnapshot> = emptyList()
+    var result: List<QuizResultSnapshot> = emptyList(),
+    var score: Int
 )
 
 @JsonClass(generateAdapter = true)
@@ -21,12 +22,6 @@ data class QuizResultSnapshot(
     val questionText: String,
     val correctOptionId: String,
     val chosenOptionId: String?,
-    val optionSnapshots: List<OptionSnapshot>,
-    val questionOrder: Int
-)
-
-@JsonClass(generateAdapter = true)
-data class OptionSnapshot(
-    val id: String,
-    val text: String,
+    val optionSnapshots: List<Option>,
+    val questionOrder: Int,
 )
