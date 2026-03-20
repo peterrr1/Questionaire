@@ -52,11 +52,10 @@
       {"id": 2, "text": "Vármegyei vadászkamara"},
       {"id": 3, "text": "Vármegyei vadászszövetség"}
     ],
-    "answer": 1,
-    ""
+    "answer": 1
   },
   {
-    "type": "MULTI_OPTION",
+    "type": "MULTIPLE_OPTION",
     "category": "JOGI_ÉS_IGAZGATÁSI_KÉRDÉSEK",
     "text": "Mely szervezet az elsőfokú vadászati hatóság hazánkban?",
     "options": [
