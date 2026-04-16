@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.devtools.ksp)
     alias(libs.plugins.dagger.hilt.android)
-    //id("org.jetbrains.kotlin.plugin.serialization") version "2.3.0"
+    alias(libs.plugins.jetbrains.kotlin.serialization)
 }
 val bundleId = "com.example.questionaire"
 
@@ -22,8 +22,15 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-
+    buildFeatures {
+        buildConfig = true
+        compose = true
+    }
     buildTypes {
+        debug {
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:3000\"")
+
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -35,9 +42,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
-    }
-    buildFeatures {
-        compose = true
     }
 }
 
@@ -61,8 +65,12 @@ dependencies {
 
     // Retrofit with Kotlin serialization Converter
     implementation(libs.retrofit2.kotlinx.serialization.converter)
+    // OkHttp
     implementation(libs.okhttp)
+    implementation(libs.okhttp.logging.interceptor)
 
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
 
     // Room
     implementation(libs.androidx.room.runtime)
@@ -88,6 +96,13 @@ dependencies {
     implementation(libs.moshi.kotlin)
     ksp(libs.moshi.kotlin.codegen)
 
+    // Nav 3
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+    implementation(libs.androidx.material3.adaptive.navigation3)
+    implementation(libs.kotlinx.serialization.core)
+
 
     // Dependency injection
     implementation(libs.androidx.dagger.hilt.android)
@@ -105,4 +120,8 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Glide
+    implementation(libs.glide)
+
 }

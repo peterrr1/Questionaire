@@ -3,4 +3,5 @@
     <string name="can_t_load_the_questions">Can\'t load the questions</string>
     <string name="hunting_practices">Hunting practices</string>
     <string name="vadaszat_gyakorlata">A vadászat gyakorlata</string>
+    <string name="home_screen_loading_error">Sorry, we can\'t load the data. Please try again.</string>>
 </resources>
