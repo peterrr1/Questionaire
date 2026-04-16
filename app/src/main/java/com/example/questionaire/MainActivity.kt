@@ -119,7 +119,6 @@ class MainActivity : ComponentActivity() {
 
             val authState by produceState<AuthState>(initialValue = AuthState.Loading) {
                 tokenManager.getToken("ACCESS").collect { token ->
-                    Log.d("AUTH", "Token emitted: $token") // ✅ is this firing after login?
                     value = if (token != null) AuthState.Authenticated else AuthState.Unauthenticated
                 }
             }
@@ -181,11 +180,11 @@ class MainActivity : ComponentActivity() {
                     }
                 ) { innerPadding ->
                     LaunchedEffect(authState) {
-                        Log.d("AUTH", "AuthState changed: $authState") // ✅ is this reaching Authenticated?
+                        Log.d("AUTH", "AuthState changed: $authState")
                         when (authState) {
                             is AuthState.Loading -> Unit
                             is AuthState.Authenticated -> {
-                                Log.d("AUTH", "Navigating to Home") // ✅ is navigation being triggered?
+                                Log.d("AUTH", "Navigating to Home")
                                 backStack.clear()
                                 backStack.add(Home)
                             }
