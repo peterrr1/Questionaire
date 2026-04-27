@@ -82,7 +82,7 @@ fun QuizScreen(
                 state.isLoading -> LoadingState()
                 state.hasError -> ErrorScreen(
                     onTryAgain = { quizViewModel.reloadData() },
-                    errorMessages = state.errorMessages
+                    errorMessage = state.errorMessages.last()
                 )
                 else -> EmptyScreen(
                     onTryAgain = { quizViewModel.reloadData() },

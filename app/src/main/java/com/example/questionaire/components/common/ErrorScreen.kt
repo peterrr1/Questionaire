@@ -23,7 +23,7 @@ import com.example.questionaire.utils.ErrorMessage
 @Composable
 fun ErrorScreen(
     onTryAgain: () -> Unit,
-    errorMessages: List<ErrorMessage>,
+    errorMessage: ErrorMessage,
     modifier: Modifier = Modifier
 ) {
     Box(modifier
@@ -35,14 +35,12 @@ fun ErrorScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            errorMessages.forEach {
-                Text(
-                    text = it.messageId,
-                    style = MaterialTheme.typography.displaySmall,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center,
-                )
-            }
+            Text(
+                text = errorMessage.messageId,
+                style = MaterialTheme.typography.displaySmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center,
+            )
             Spacer(modifier = Modifier.padding(16.dp))
             Button(
                 onClick = onTryAgain

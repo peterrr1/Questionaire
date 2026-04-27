@@ -6,48 +6,32 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.DefaultTab.AlbumsTab.value
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.example.questionaire.components.common.TopAppBar
+import com.example.questionaire.feature.create.CreateScreen
 import com.example.questionaire.feature.home.HomeScreen
 import com.example.questionaire.feature.login.LoginScreen
 import com.example.questionaire.feature.quiz.QuizRouteParams
@@ -56,6 +40,7 @@ import com.example.questionaire.feature.quizCategory.QuizInformationScreen
 import com.example.questionaire.feature.quizSummary.QuizSummaryScreen
 import com.example.questionaire.theme.HuntingQuizTheme
 import com.example.questionaire.utils.managers.TokenManager
+import com.example.questionaire.utils.managers.TokenType
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.serialization.Serializable
 import javax.inject.Inject
@@ -73,8 +58,7 @@ data object Home: NavKey, TitledNavKey {
 @Serializable
 data class QuizInformation(val type: String): NavKey, TitledNavKey {
     override val title = "Quiz Information"
-    companion object {
-    }
+    companion object
 }
 @Serializable
 data class Quiz(val collectionId: String, val category: String): NavKey, TitledNavKey {
@@ -89,6 +73,17 @@ data object Login: NavKey, TitledNavKey {
 data object Summary: NavKey, TitledNavKey {
     override val title = "Summary"
 }
+
+@Serializable
+data object Search: NavKey, TitledNavKey {
+    override val title = "Search"
+}
+
+@Serializable
+data object Create: NavKey, TitledNavKey {
+    override val title = "Create"
+}
+
 
 sealed class AuthState {
     data object Loading : AuthState()
@@ -108,7 +103,7 @@ class MainActivity : ComponentActivity() {
             val backStack = rememberNavBackStack(Login)
             val screensWithBottomBar = listOf(Home::class, QuizInformation::class, Summary::class)
             val screensWithTopBarBackButton =
-                listOf(QuizInformation::class, Summary::class, Quiz::class)
+                listOf(QuizInformation::class, Summary::class, Quiz::class, Create::class)
 
             val showBottomBar =
                 backStack.lastOrNull()?.let { it::class in screensWithBottomBar } ?: false
@@ -118,7 +113,7 @@ class MainActivity : ComponentActivity() {
             val screenTitle = (backStack.lastOrNull() as? TitledNavKey)?.title ?: "Screen Title"
 
             val authState by produceState<AuthState>(initialValue = AuthState.Loading) {
-                tokenManager.getToken("ACCESS").collect { token ->
+                tokenManager.getToken(TokenType.ACCESS_TOKEN).collect { token ->
                     value = if (token != null) AuthState.Authenticated else AuthState.Unauthenticated
                 }
             }
@@ -127,44 +122,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     bottomBar = {
                         if (showBottomBar) {
-                            NavigationBar {
-                                NavigationBarItem(
-                                    modifier = Modifier.align(Alignment.CenterVertically),
-                                    selected = backStack.lastOrNull() is Home,
-                                    onClick = { backStack.add(Home) },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.home_24px),
-                                            contentDescription = null
-                                        )
-                                    },
-                                    label = { Text("Home") }
-                                )
-                                NavigationBarItem(
-                                    modifier = Modifier.align(Alignment.CenterVertically),
-                                    selected = backStack.lastOrNull() is Summary,
-                                    onClick = { backStack.add(Summary) },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.library_books_24dp_e3e3e3_fill0_wght400_grad0_opsz24),
-                                            contentDescription = null
-                                        )
-                                    },
-                                    label = { Text("Summary") }
-                                )
-                                NavigationBarItem(
-                                    modifier = Modifier.align(Alignment.CenterVertically),
-                                    selected = backStack.lastOrNull() is Login,
-                                    onClick = { backStack.add(Login) },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.person_24dp_e3e3e3_fill0_wght400_grad0_opsz24),
-                                            contentDescription = null
-                                        )
-                                    },
-                                    label = { Text("Profile") }
-                                )
-                            }
+                            BottomNavigationBar(backStack)
                         }
                     },
                     topBar = {
@@ -204,10 +162,6 @@ class MainActivity : ComponentActivity() {
                         onBack = { backStack.removeLastOrNull() },
                         entryProvider = entryProvider {
                             entry<Home> {
-                                if (authState is AuthState.Loading) {
-                                    // show splash or blank
-                                    return@entry
-                                }
                                 HomeScreen(
                                     navigateToQuizType = { type ->
                                         backStack.add(QuizInformation(type))
@@ -236,11 +190,82 @@ class MainActivity : ComponentActivity() {
                             entry<Summary> {
                                 QuizSummaryScreen()
                             }
+                            entry<Create> {
+                                CreateScreen()
+                            }
                         }
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun BottomNavigationBar(
+    backStack: NavBackStack<NavKey>
+) {
+    NavigationBar {
+        NavigationBarItem(
+            modifier = Modifier.align(Alignment.CenterVertically),
+            selected = backStack.lastOrNull() is Home,
+            onClick = { backStack.add(Home) },
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.home_24px),
+                    contentDescription = null
+                )
+            },
+            label = { Text("Home") }
+        )
+        NavigationBarItem(
+            modifier = Modifier.align(Alignment.CenterVertically),
+            selected = backStack.lastOrNull() is Search,
+            onClick = { backStack.add(Home) },
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_search),
+                    contentDescription = null
+                )
+            },
+            label = { Text("Search") }
+        )
+        NavigationBarItem(
+            modifier = Modifier.align(Alignment.CenterVertically),
+            selected = backStack.lastOrNull() is Create,
+            onClick = { backStack.add(Create) },
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_plus),
+                    contentDescription = null
+                )
+            },
+            label = { Text("Create") }
+        )
+        NavigationBarItem(
+            modifier = Modifier.align(Alignment.CenterVertically),
+            selected = backStack.lastOrNull() is Summary,
+            onClick = { backStack.add(Summary) },
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.library_books_24dp_e3e3e3_fill0_wght400_grad0_opsz24),
+                    contentDescription = null
+                )
+            },
+            label = { Text("Summary") }
+        )
+        NavigationBarItem(
+            modifier = Modifier.align(Alignment.CenterVertically),
+            selected = backStack.lastOrNull() is Login,
+            onClick = { backStack.add(Login) },
+            icon = {
+                Icon(
+                    painter = painterResource(R.drawable.person_24dp_e3e3e3_fill0_wght400_grad0_opsz24),
+                    contentDescription = null
+                )
+            },
+            label = { Text("Profile") }
+        )
     }
 }
 

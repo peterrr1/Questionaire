@@ -19,7 +19,6 @@ data class Option(
 )
 
 
-
 data class PublicUserInfo (
     val username: String = "USERNAME",
     val createdAt: String = "DATE_CREATION"

@@ -2,6 +2,7 @@ package com.example.questionaire.data.network.interceptors
 
 import com.example.questionaire.data.network.services.AuthApiService
 import com.example.questionaire.utils.managers.TokenManager
+import com.example.questionaire.utils.managers.TokenType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
@@ -22,11 +23,11 @@ class AuthInterceptor @Inject constructor(
         }
 
         val accessToken = runBlocking {
-            tokenManager.getToken("ACCESS").first()
+            tokenManager.getToken(TokenType.ACCESS_TOKEN).first()
         }
 
         val authenticatedRequest = request.newBuilder()
-            .apply { if (accessToken != null) addHeader("Authorization", "Bearer $accessToken")}
+            .apply { if (accessToken != null) header("Authorization", "Bearer $accessToken")}
             .build()
 
         return chain.proceed(authenticatedRequest)

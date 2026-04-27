@@ -69,7 +69,7 @@ fun HomeScreen(
             state.isLoading -> LoadingState()
             state.hasError -> ErrorScreen(
                 onTryAgain = { homeViewModel.reloadData() },
-                errorMessages = state.errorMessages
+                errorMessage = state.errorMessages.last()
             )
         }
         is UIState.HasData -> {

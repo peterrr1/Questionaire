@@ -1,10 +1,13 @@
 package com.example.questionaire.data.repositories
 
+import android.os.Build
+import androidx.annotation.RequiresExtension
 import com.example.questionaire.model.Question
 import com.example.questionaire.data.network.services.QuizApiService
 import com.example.questionaire.model.CompactQuizInfo
 import com.example.questionaire.model.DetailedQuizInfo
 import com.example.questionaire.utils.Result
+import com.example.questionaire.utils.safeApiCall
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okio.IOException
@@ -28,12 +31,7 @@ class NetworkRepository @Inject constructor(
 
     suspend fun getQuizTypes(): Result<List<CompactQuizInfo>> {
         return withContext(Dispatchers.IO) {
-            try {
-                val result = quizApiService.getQuizTypes().data.map { it.toDomain() }
-                Result.Success(data = result)
-            } catch (e: IOException) {
-                Result.Error(exception = IOException("Couldn't load quiz types from the API:", e))
-            }
+            safeApiCall { quizApiService.getQuizTypes().data.map { it.toDomain() } }
         }
     }
 

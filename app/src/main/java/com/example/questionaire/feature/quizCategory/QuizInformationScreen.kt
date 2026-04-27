@@ -1,49 +1,69 @@
 package com.example.questionaire.feature.quizCategory
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.questionaire.R
-import com.example.questionaire.components.common.CustomCircularProgressIndicator
 import com.example.questionaire.components.common.CustomPullToRefreshBox
-import com.example.questionaire.components.common.CustomPullToRefreshIndicator
 import com.example.questionaire.components.common.EmptyScreen
 import com.example.questionaire.components.common.ErrorScreen
 import com.example.questionaire.components.common.LoadingState
 import com.example.questionaire.model.DetailedQuizInfo
-import com.example.questionaire.model.PublicUserInfo
 import com.example.questionaire.utils.UIState
 import com.example.questionaire.utils.hasError
 import com.example.questionaire.utils.isRefreshing
+
+// ── Entry point ───────────────────────────────────────────────────────────────
 
 @Composable
 fun QuizInformationScreen(
@@ -56,140 +76,416 @@ fun QuizInformationScreen(
     val uiState: UIState<DetailedQuizInfo> by quizCategoryViewModel.quizInformation.collectAsStateWithLifecycle()
 
     when (val state = uiState) {
-        is UIState.NoData -> {
-            when {
-                state.isLoading -> LoadingState()
-                state.hasError -> ErrorScreen(
-                    onTryAgain = { quizCategoryViewModel.reloadData() },
-                    errorMessages = state.errorMessages
-                )
-                else -> EmptyScreen(
-                    onTryAgain = { quizCategoryViewModel.reloadData() },
-                    message = "There is no information about the quiz yet."
-                )
-            }
+        is UIState.NoData -> when {
+            state.isLoading -> LoadingState()
+            state.hasError -> ErrorScreen(
+                onTryAgain = { quizCategoryViewModel.reloadData() },
+                errorMessage = state.errorMessages.last()
+            )
+            else -> EmptyScreen(
+                onTryAgain = { quizCategoryViewModel.reloadData() },
+                message = "There is no information about this quiz yet."
+            )
         }
+
         is UIState.HasData -> {
             CustomPullToRefreshBox(
                 isRefreshing = state.isRefreshing,
                 onRefresh = { quizCategoryViewModel.reloadData() }
             ) {
-                QuizInformationScreen(
-                    state.data,
-                    onNavigateToQuiz
+                QuizInformationContent(
+                    quizInformation = state.data,
+                    onNavigateToQuiz = onNavigateToQuiz
                 )
             }
         }
     }
 }
 
+// ── Main content ──────────────────────────────────────────────────────────────
+
 @Composable
-fun QuizInformationScreen(
+private fun QuizInformationContent(
     quizInformation: DetailedQuizInfo,
     onNavigateToQuiz: (String, String) -> Unit,
-    modifier: Modifier = Modifier,
-
+    modifier: Modifier = Modifier
 ) {
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    var sheetCategory by remember { mutableStateOf<String?>(null) }
+
+    val allCategories = listOf("All") + quizInformation.questionCategories
+    val visibleCategories = if (selectedCategory == null || selectedCategory == "All") {
+        quizInformation.questionCategories
+    } else {
+        quizInformation.questionCategories.filter { it == selectedCategory }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            verticalArrangement = Arrangement.spacedBy(0.dp)
+        ) {
+            // ── Hero header ───────────────────────────────────────────────
+            item {
+                QuizHeroHeader(quizInformation = quizInformation)
+            }
+
+            // ── Category filter chips ─────────────────────────────────────
+            item {
+                CategoryFilterRow(
+                    categories = allCategories,
+                    selected = selectedCategory ?: "All",
+                    onSelect = { selectedCategory = it }
+                )
+            }
+
+            item { Spacer(Modifier.height(8.dp)) }
+
+            // ── Category cards ────────────────────────────────────────────
+            items(visibleCategories) { category ->
+                QuizCategoryCard(
+                    drawable = R.drawable.hunting_practices,
+                    text = category,
+                    onClick = { sheetCategory = category }
+                )
+            }
+
+            item { Spacer(Modifier.height(120.dp)) }
+        }
+
+        // ── Scrim ─────────────────────────────────────────────────────────
+        AnimatedVisibility(
+            visible = sheetCategory != null,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f))
+                    .clickable { sheetCategory = null }
+            )
+        }
+
+        // ── Floating bottom sheet ─────────────────────────────────────────
+        AnimatedVisibility(
+            visible = sheetCategory != null,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(340, easing = FastOutSlowInEasing)
+            ) + fadeIn(tween(200)),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(260, easing = FastOutSlowInEasing)
+            ) + fadeOut(tween(150))
+        ) {
+            sheetCategory?.let { category ->
+                CategoryDetailSheet(
+                    category = category,
+                    collectionId = quizInformation.collectionId,
+                    onPlay = { collectionId, cat ->
+                        sheetCategory = null
+                        onNavigateToQuiz(collectionId, cat)
+                    },
+                    onDismiss = { sheetCategory = null }
+                )
+            }
+        }
+    }
+}
+
+// ── Hero header ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun QuizHeroHeader(quizInformation: DetailedQuizInfo) {
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .background(MaterialTheme.colorScheme.background)
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Information about the quiz
+        // Visibility badge
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.primaryContainer)
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+        ) {
+            Text(
+                text = quizInformation.visibility.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                letterSpacing = 1.2.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
 
-        Text(text = quizInformation.name, modifier = Modifier.padding(16.dp))
-        Text(text = quizInformation.visibility, modifier = Modifier.padding(16.dp))
-        Text(text = "Author: ${quizInformation.author.username}", modifier = Modifier.padding(16.dp))
+        // Quiz name
+        Text(
+            text = quizInformation.name,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            lineHeight = 32.sp
+        )
 
-        Spacer(modifier = Modifier.padding(16.dp))
+        // Author row
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = quizInformation.author.username.take(1).uppercase(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = quizInformation.author.username,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
-        Text(text = "Categories", modifier = Modifier.padding(horizontal = 16.dp))
-
-        Spacer(modifier = Modifier.padding(16.dp))
-        // Question categories
-        quizInformation.questionCategories.forEach { quizCategory ->
-            QuizCategoryCard(
-                drawable = R.drawable.hunting_practices,
-                text = quizCategory,
-                navigate = {
-                    onNavigateToQuiz(quizInformation.collectionId, quizCategory)
-                }
+        // Stats row
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            StatChip(
+                label = "Categories",
+                value = "${quizInformation.questionCategories.size}"
             )
         }
     }
 }
 
+@Composable
+private fun StatChip(label: String, value: String) {
+    Column {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            letterSpacing = 0.8.sp
+        )
+    }
+}
+
+// ── Category filter row ───────────────────────────────────────────────────────
 
 @Composable
-fun QuizCategoryCard(
+private fun CategoryFilterRow(
+    categories: List<String>,
+    selected: String,
+    onSelect: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        categories.forEach { category ->
+            val isSelected = category == selected
+            val animatedAlpha by animateFloatAsState(
+                targetValue = if (isSelected) 1f else 0f,
+                animationSpec = tween(200),
+                label = "chip_alpha_$category"
+            )
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    .clickable { onSelect(category) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = category,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+// ── Category card ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun QuizCategoryCard(
     @DrawableRes drawable: Int,
     text: String,
-    navigate: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.secondaryContainer,
+    Row(
         modifier = modifier
-            .padding(10.dp)
-            .clickable(onClick = navigate)
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        // Thumbnail
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .size(72.dp)
+                .clip(RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp))
         ) {
             Image(
                 painter = painterResource(drawable),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.size(90.dp)
+                modifier = Modifier.fillMaxSize()
             )
-            Text(
-                text = text,
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+            // Gradient overlay for readability
+            Box(
                 modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .weight(1f)
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0f),
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.1f)
+                            )
+                        )
+                    )
             )
-            IconButton(
-                onClick = {  },
-                modifier = Modifier.size(56.dp) // optional, keeps material touch target
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.more_vert_24px),
-                    contentDescription = "Download",
-                    modifier = Modifier.size(32.dp)
-                )
-            }
         }
+
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 14.dp)
+        )
+
+        Icon(
+            painter = painterResource(R.drawable.more_vert_24px),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .padding(end = 14.dp)
+                .size(20.dp)
+        )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// ── Category detail sheet ─────────────────────────────────────────────────────
+
 @Composable
-fun TopBar(
-    title: String,
-    navigate: () -> Unit
+private fun CategoryDetailSheet(
+    category: String,
+    collectionId: String,
+    onPlay: (String, String) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    CenterAlignedTopAppBar(
-        navigationIcon = {
-            IconButton(onClick = navigate) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_arrow_back),
-                    contentDescription = null,
-                )
-            }
-        },
-        title = {
-            Text(text = title)
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .wrapContentHeight()
+            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .navigationBarsPadding()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Drag handle
+        Box(
+            modifier = Modifier
+                .width(40.dp)
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
+                .align(Alignment.CenterHorizontally)
+        )
+
+        // Category badge
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.primaryContainer)
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+        ) {
+            Text(
+                text = "CATEGORY",
+                style = MaterialTheme.typography.labelSmall,
+                letterSpacing = 1.2.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
-    )
+
+        // Category name
+        Text(
+            text = category,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        // Divider
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        )
+
+        // Play button
+        Button(
+            onClick = { onPlay(collectionId, category) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_play),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "Start Quiz",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
 }
-
-
-
-

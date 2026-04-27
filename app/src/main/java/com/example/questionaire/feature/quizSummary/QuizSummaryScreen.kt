@@ -41,10 +41,13 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.questionaire.components.common.CustomCircularProgressIndicator
 import com.example.questionaire.components.common.EmptyScreen
+import com.example.questionaire.components.common.ErrorScreen
 import com.example.questionaire.components.common.LoadingState
 import com.example.questionaire.data.local.entities.QuizAttemptEntity
 import com.example.questionaire.data.local.entities.QuizResultEntity
 import com.example.questionaire.utils.UIState
+import com.example.questionaire.utils.hasError
+import com.example.questionaire.utils.isRefreshing
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
