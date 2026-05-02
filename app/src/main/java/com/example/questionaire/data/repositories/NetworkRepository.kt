@@ -1,11 +1,14 @@
 package com.example.questionaire.data.repositories
 
+import android.net.http.NetworkException
 import android.os.Build
 import androidx.annotation.RequiresExtension
+import com.example.questionaire.data.network.dto.QuizDraftDto
 import com.example.questionaire.model.Question
 import com.example.questionaire.data.network.services.QuizApiService
 import com.example.questionaire.model.CompactQuizInfo
 import com.example.questionaire.model.DetailedQuizInfo
+import com.example.questionaire.model.QuizDraft
 import com.example.questionaire.utils.Result
 import com.example.questionaire.utils.safeApiCall
 import kotlinx.coroutines.Dispatchers
@@ -16,12 +19,33 @@ import javax.inject.Inject
 class NetworkRepository @Inject constructor(
     private val quizApiService: QuizApiService
 )  {
-    suspend fun getQuestions(quizId: String, category: String): Result<List<Question>> {
+
+    suspend fun createQuiz(quizDraft: QuizDraft): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
-                val result = quizApiService.getQuestions(
+
+                val response = quizApiService.createQuiz(quizDraft.toDto())
+                if (response.success) {
+                    Result.Success(data = Unit)
+                }
+                else {
+                    Result.Error(exception = IOException("An error occurred during quiz creation."))
+                }
+            } catch (e: Exception) {
+                Result.Error(exception = IOException("An error occurred during quiz creation: ${e.message}"))
+            }
+        }
+    }
+
+    suspend fun getQuestions(quizId: String, category: String?): Result<List<Question>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = quizApiService.getQuestions(
                     quizId = quizId,
-                    category = category).data.map { it.toDomain() }
+                    category = category)
+                val data = response.data ?: throw IOException("Data field was not specified in the api response object.")
+                val result = data.map { it.toDomain() }
+
                 Result.Success(data = result)
             } catch (e: IOException) {
                 Result.Error(exception = IOException("Couldn't load question from network: $e"))
@@ -29,9 +53,14 @@ class NetworkRepository @Inject constructor(
         }
     }
 
+
     suspend fun getQuizTypes(): Result<List<CompactQuizInfo>> {
         return withContext(Dispatchers.IO) {
-            safeApiCall { quizApiService.getQuizTypes().data.map { it.toDomain() } }
+
+            safeApiCall {
+                val response = quizApiService.getQuizTypes()
+                val data = response.data ?: throw IOException("Data field was not specified in the api response object.")
+                data.map { it.toDomain() } }
         }
     }
 
@@ -39,7 +68,10 @@ class NetworkRepository @Inject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 // Get data then convert the data transfer object to domain object
-                val result = quizApiService.getQuizInfo(quizId).data.toDomain()
+                val response = quizApiService.getQuizInfo(quizId)
+                val data = response.data ?: throw IOException("Data field was not specified in the api response object.")
+                val result = data.toDomain()
+
                 Result.Success(data = result)
             } catch (e: IOException) {
                 Result.Error(exception = IOException("Couldn't load quiz information from the API:", e))

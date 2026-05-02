@@ -25,11 +25,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -42,9 +43,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,17 +66,18 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.room.util.TableInfo
-import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.example.questionaire.R
 import com.example.questionaire.model.Option
+import com.example.questionaire.model.OptionDraft
 import com.example.questionaire.model.Question
+import com.example.questionaire.model.QuestionDraft
+import com.example.questionaire.model.QuizDraft
+import com.example.questionaire.model.QuizInformationDraft
 import com.example.questionaire.utils.UIState
 import java.util.UUID
 
@@ -83,43 +85,18 @@ import java.util.UUID
 fun CreateScreen(
     createViewModel: CreateViewModel = hiltViewModel()
 ) {
-    val uiState: UIState<List<Question>> by createViewModel.uiState.collectAsStateWithLifecycle()
+    val uiState: UIState<QuizDraft> by createViewModel.uiState.collectAsStateWithLifecycle()
+    val errors: List<ValidationError> by createViewModel.validationErrors.collectAsStateWithLifecycle()
 
-//    val questions: List<Question> = when (val state = uiState) {
-//        is UIState.NoData -> emptyList()
-//        is UIState.HasData -> state.data
-//    }
-
-    val questions: List<Question> = listOf(
-        Question(
-            id = UUID.randomUUID().toString(),
-            type = "SINGLE_OPTION",
-            category = "JOGI_ÉS_IGAZGATÁSI_KÉRDÉSEK",
-            text = "Kié hazánkban a vad tulajdonjoga?",
-            options = listOf(
-                Option(
-                    id = "1",
-                    text = "Vadászatra jogosult"
-                ),
-                Option(
-                    id = "2",
-                    text = "Földtulajdonhoz kötött"
-                ),
-                Option(
-                    id = "3",
-                    text = "Állam"
-                )
-            ),
-            correctOptionId = "3"
-        )
-    )
-
+    val data: QuizDraft = when (val state = uiState) {
+        is UIState.NoData -> QuizDraft()
+        is UIState.HasData -> state.data
+    }
 
     var showQuestionDetail by remember { mutableStateOf(false) }
-    var selectedQuestion by remember { mutableStateOf<Question?>(null) }
-
+    val selectedQuestion by createViewModel.selectedQuestion.collectAsStateWithLifecycle()
     val visibilityTypes = listOf("Public", "Private")
-    var selected by remember { mutableStateOf<String?>(null) }
+    var selectedQuestionIndex = 0
 
     val focusManager = LocalFocusManager.current
 
@@ -195,9 +172,10 @@ fun CreateScreen(
 
             item {
                 OutlinedTextField(
-                    state = rememberTextFieldState(),
+                    state = createViewModel.quizNameState,
                     label = { Text("Quiz name") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = ValidationError.EmptyQuizName in errors
                 )
             }
 
@@ -221,10 +199,8 @@ fun CreateScreen(
                 FlowRow {
                     visibilityTypes.forEach { visibility ->
                         FilterChip(
-                            selected = selected == visibility ,
-                            onClick = {
-                                selected = if (selected == visibility) null else visibility
-                            },
+                            selected = data.quizInformation.visibility == visibility,
+                            onClick = { createViewModel.selectVisibility(visibility) },
                             label = { Text(visibility) }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -237,10 +213,19 @@ fun CreateScreen(
             }
 
             item {
-                Text(
-                    text = "Questions",
-                    style = MaterialTheme.typography.titleLarge
-                )
+                Row(
+                 verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Questions",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        painter = painterResource(R.drawable.ic_filter),
+                        contentDescription = null
+                    )
+                }
             }
 
             item {
@@ -249,9 +234,9 @@ fun CreateScreen(
 
 
             // QUESTION LIST
-            // Only shows the question text, if clicked, a sheet is pops up from the bottom
+            // Only shows the question text, if clicked, a sheet pops up from the bottom
             // and the options can be modified
-            if (questions.isEmpty()) {
+            if (data.questions.isEmpty()) {
                 item {
                     Text(
                         text = "There aren't any questions created yet.",
@@ -260,12 +245,16 @@ fun CreateScreen(
                 }
             } else {
 
-                itemsIndexed(questions) { index, item ->
+                itemsIndexed(data.questions) { index, item ->
                     CustomCard(
                         CardType.QUESTION,
                         text = item.text,
                         borderColor = MaterialTheme.colorScheme.onBackground,
-                        onClick = { showQuestionDetail = true; selectedQuestion = questions[index] }
+                        onClick = {
+                            selectedQuestionIndex = index
+                            showQuestionDetail = true
+                            createViewModel.openExistingQuestion(item)
+                        }
                     )
                 }
 
@@ -277,7 +266,10 @@ fun CreateScreen(
 
             item {
                 Button(
-                    onClick = { showQuestionDetail = true },
+                    onClick = {
+                        showQuestionDetail = true
+                        createViewModel.openNewQuestion()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
@@ -289,12 +281,36 @@ fun CreateScreen(
                     Text("Add question")
                 }
             }
+
+            item {
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            item {
+                Button(
+                    onClick = { createViewModel.createQuiz() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Create quiz")
+                }
+            }
+
         }
 
         if (showQuestionDetail) {
             QuestionSheet(
-                onDismiss = { showQuestionDetail = false; selectedQuestion = null },
-                question = selectedQuestion
+                errors = errors,
+                onDismiss = { showQuestionDetail = false; },
+                question = selectedQuestion,
+                viewModel = createViewModel,
+                quizInformationDraft = data.quizInformation,
+                questionIndex = selectedQuestionIndex,
             )
         }
     }
@@ -305,23 +321,21 @@ fun CreateScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuestionSheet(
-    question: Question?,
-    onDismiss: () -> Unit
+    question: QuestionDraft?,
+    errors: List<ValidationError>,
+    quizInformationDraft: QuizInformationDraft,
+    viewModel: CreateViewModel,
+    onDismiss: () -> Unit,
+    questionIndex: Int = 0
 ) {
 
     val scrollState = rememberScrollState()
-
-    var selectedCategory by remember { mutableStateOf<String?>(question?.category) }
-    val categories = listOf("+", "Vadászati állatan", "JOGI_ÉS_IGAZGATÁSI_KÉRDÉSEK", "Vadászkutyák", "Vadászati kultúra", "Vadfajok és vadászatuk")
-
+    val currentQuestionDraft by viewModel.currentQuestionDraft.collectAsStateWithLifecycle()
 
     ModalBottomSheet(
         containerColor = MaterialTheme.colorScheme.background,
         onDismissRequest = onDismiss,
     ) {
-
-
-
         val focusManager = LocalFocusManager.current
         Column(
             modifier = Modifier
@@ -343,9 +357,10 @@ fun QuestionSheet(
             Spacer(modifier = Modifier.height(10.dp))
 
             OutlinedTextField(
-                state = rememberTextFieldState(initialText = question?.text ?: ""),
+                state = viewModel.questionTextState,
                 label = { Text("Question") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = ValidationError.EmptyQuestionText in errors
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -358,9 +373,11 @@ fun QuestionSheet(
             Spacer(modifier = Modifier.height(10.dp))
 
             CategoryFilterRow(
-                categories,
-                selectedCategory ?: "",
-                onSelect = { selectedCategory = it}
+                categories = quizInformationDraft.questionCategories,
+                selected = currentQuestionDraft.category ?: "",
+                addCategory = { viewModel.addQuestionCategory(it) },
+                onSelect = { viewModel.selectQuestionCategory(it) },
+                onLongClick = { viewModel.deleteQuestionCategory(it) }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -372,24 +389,48 @@ fun QuestionSheet(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            if (question == null) {
-                Text(
-                    text = "No options have been added yet.",
-                    style = MaterialTheme.typography.titleLarge
-                )
-            } else {
+            if (!currentQuestionDraft.options.isEmpty()) {
                 Column {
-                    question.options.forEachIndexed { index, option ->
-                        val correctOptionBorderColor = if (question.correctOptionId == (index + 1).toString()) {
+                    currentQuestionDraft.options.forEachIndexed { index, option ->
+                        val correctOptionBorderColor = if (currentQuestionDraft.correctOptionId == (index + 1)) {
                             MaterialTheme.colorScheme.primaryContainer
                         } else {
                             MaterialTheme.colorScheme.onBackground
                         }
 
                         CustomCard(
+                            selectCorrectOption = { viewModel.setCorrectOption(index + 1, isDraft = true, questionIndex) },
                             cardType = CardType.OPTION,
                             text = option.text,
-                            borderColor = correctOptionBorderColor
+                            borderColor = correctOptionBorderColor,
+                            optionTextFieldState = viewModel.optionTextState,
+                            editOptionText = { viewModel.editOption(index) }
+                        )
+                    }
+                }
+            }
+            else if (question == null) {
+                Text(
+                    text = "No options have been added yet.",
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
+            else {
+                Column {
+                    question.options.forEachIndexed { index, option ->
+                        val correctOptionBorderColor = if (question.correctOptionId == (index + 1)) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onBackground
+                        }
+
+                        CustomCard(
+                            selectCorrectOption = { viewModel.setCorrectOption(index + 1, isDraft = true, questionIndex) },
+                            cardType = CardType.OPTION,
+                            text = option.text,
+                            borderColor = correctOptionBorderColor,
+                            optionTextFieldState = viewModel.optionTextState,
+                            editOptionText = { viewModel.editOption(index) }
                         )
                     }
                 }
@@ -399,7 +440,7 @@ fun QuestionSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
-                onClick = {},
+                onClick = { viewModel.addOption() },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
@@ -411,13 +452,18 @@ fun QuestionSheet(
             Spacer(modifier = Modifier.height(10.dp))
 
             Button(
-                onClick = {  },
+                onClick = { viewModel.saveQuestion(questionIndex) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
             ) {
-                Text("Save")
+                if (question == null) {
+                    Text("Save")
+                } else {
+                    Text("Modify")
+                }
+
             }
 
         }
@@ -435,7 +481,11 @@ fun CustomCard(
     text: String,
     borderColor: Color,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = { }
+    onClick: () -> Unit = { },
+    selectCorrectOption: () -> Unit = {},
+    optionTextFieldState: TextFieldState = TextFieldState(),
+    editOptionText: () -> Unit = {}
+
 ) {
     var editText by remember { mutableStateOf(false) }
 
@@ -448,8 +498,8 @@ fun CustomCard(
             .padding(10.dp)
             .fillMaxWidth()
             .combinedClickable(
-                onClick = onClick, // If its acts as a question card
-                onLongClick = {
+                onClick = { if (cardType == CardType.OPTION) { selectCorrectOption() } else { onClick() } }, // If its acts as a question card
+                onDoubleClick = {
                     if (cardType == CardType.OPTION) {
                         editText = true
                     }
@@ -476,7 +526,7 @@ fun CustomCard(
                 }
 
                 OutlinedTextField(
-                    state = rememberTextFieldState(),
+                    state = optionTextFieldState,
                     textStyle = MaterialTheme.typography.titleLarge,
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -487,6 +537,10 @@ fun CustomCard(
                                 hasFocused = true
                             } else if (hasFocused) {
                                 editText = false
+                                // Add text
+                                editOptionText()
+                                // Clear state
+                                optionTextFieldState.clearText()
                             }
                         },
                     colors = TextFieldDefaults.colors(
@@ -512,9 +566,11 @@ fun CustomCard(
 
 @Composable
 private fun CategoryFilterRow(
+    addCategory: (String) -> Unit,
     categories: List<String>,
     selected: String,
-    onSelect: (String) -> Unit
+    onSelect: (String) -> Unit,
+    onLongClick: (String) -> Unit
 ) {
     var displayPopUp by remember { mutableStateOf(false) }
 
@@ -525,8 +581,23 @@ private fun CategoryFilterRow(
             .padding(horizontal = 20.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable { displayPopUp = true }
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = "+",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         categories.forEach { category ->
             val isSelected = category == selected
+
             val animatedAlpha by animateFloatAsState(
                 targetValue = if (isSelected) 1f else 0f,
                 animationSpec = tween(200),
@@ -540,13 +611,9 @@ private fun CategoryFilterRow(
                         if (isSelected) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.surfaceVariant
                     )
-                    .clickable {
-                        if (category == "+") {
-                            displayPopUp = true
-                        } else {
-                            onSelect(category)
-                        }
-                    }
+                    .combinedClickable(
+                        onClick = { onSelect(category) },
+                        onLongClick = { onLongClick(category) })
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
@@ -563,7 +630,10 @@ private fun CategoryFilterRow(
     if (displayPopUp) {
         CategoryAdderDialog(
             onDismissRequest = { displayPopUp = false },
-            onConfirmation = { displayPopUp = false } // + save category
+            onConfirmation = { newCategory ->
+                displayPopUp = false
+                addCategory(newCategory)
+            }
         )
     }
 }
@@ -571,8 +641,10 @@ private fun CategoryFilterRow(
 @Composable
 fun CategoryAdderDialog(
     onDismissRequest: () -> Unit,
-    onConfirmation: () -> Unit,
+    onConfirmation: (String) -> Unit,
 ) {
+    val categoryAdderState = rememberTextFieldState()
+
     Dialog(
         onDismissRequest = { onDismissRequest() },
     ) {
@@ -601,7 +673,7 @@ fun CategoryAdderDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 OutlinedTextField(
-                    state = rememberTextFieldState(),
+                    state = categoryAdderState,
                     label = { Text("New category") }
                 )
 
@@ -617,7 +689,7 @@ fun CategoryAdderDialog(
                         Text("Dismiss")
                     }
                     TextButton(
-                        onClick = { onConfirmation() },
+                        onClick = { onConfirmation(categoryAdderState.text.toString()) },
                         modifier = Modifier.padding(8.dp),
                     ) {
                         Text("Confirm")
@@ -656,19 +728,6 @@ fun OptionCardPreview() {
     }
 }
 
-
-@SuppressLint("ConfigurationScreenWidthHeight")
-@OptIn(ExperimentalMaterial3Api::class)
-@Preview(showBackground = true, heightDp = 2000)
-@Composable
-fun QuestionSheetPreview() {
-    MaterialTheme {
-        QuestionSheet(
-            onDismiss = {},
-            question = null
-        )
-    }
-}
 
 @Preview
 @Composable

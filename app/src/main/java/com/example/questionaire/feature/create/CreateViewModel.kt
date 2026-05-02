@@ -1,88 +1,317 @@
 package com.example.questionaire.feature.create
-
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import android.util.Log
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.questionaire.R
-import com.example.questionaire.data.network.services.QuizApiService
 import com.example.questionaire.data.repositories.NetworkRepository
-import com.example.questionaire.model.Question
+import com.example.questionaire.model.OptionDraft
+import com.example.questionaire.model.QuestionDraft
+import com.example.questionaire.model.QuizDraft
+import com.example.questionaire.model.QuizInformationDraft
 import com.example.questionaire.utils.DataStatus
 import com.example.questionaire.utils.ViewModelState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+sealed class ValidationError {
+    data object EmptyQuizName: ValidationError()
+    data object NoQuestions: ValidationError()
+    data object EmptyOptionText: ValidationError()
+    data object EmptyQuestionText: ValidationError()
+    data class NoCorrectOptionSelected(val index: Int): ValidationError()
+}
+
 
 @HiltViewModel
 class CreateViewModel @Inject constructor(
     private val networkRepository: NetworkRepository
 ) : ViewModel() {
     private val _createViewModelState = MutableStateFlow(
-        ViewModelState<List<Question>>(isLoading = true)
+        ViewModelState<QuizDraft>(isLoading = true)
     )
 
-
-    private val questions: List<Question>
-        get() = when (val status = _createViewModelState.value.status) {
-            is DataStatus.Empty -> emptyList()
-            is DataStatus.Available -> status.data
-        }
+    private val _validationErrors = MutableStateFlow<List<ValidationError>>(emptyList())
 
 
     val uiState = _createViewModelState
-        .map(ViewModelState<List<Question>>::toUIState)
+        .map(ViewModelState<QuizDraft>::toUIState)
         .stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
             _createViewModelState.value.toUIState()
         )
 
-    // Adds question to the viewModelState
-    fun addQuestion(newQuestion: Question) {
-        _createViewModelState.update { currentState ->
-            val updatedList = when (val status = currentState.status) {
-                is DataStatus.Empty -> listOf(newQuestion)
-                is DataStatus.Available -> status.data + newQuestion
-            }
-            currentState.onSuccess(updatedList)
+    val validationErrors = _validationErrors.asStateFlow()
+
+
+    // TextField states
+    // QuizName field
+    val quizNameState = TextFieldState()
+
+    // QuestionText field
+    val questionTextState = TextFieldState()
+
+    val optionTextState = TextFieldState()
+
+    // Question category selector
+    private val _currentQuestionDraft = MutableStateFlow(
+        QuestionDraft()
+    )
+
+
+    val currentQuestionDraft = _currentQuestionDraft.asStateFlow()
+
+    // This is used for displaying/not displaying existing texts
+    private val _selectedQuestion = MutableStateFlow<QuestionDraft?>(null)
+    val selectedQuestion = _selectedQuestion.asStateFlow()
+
+
+
+    init {
+        _createViewModelState.update {
+            it.onSuccess(QuizDraft())
         }
     }
 
-    // Uploads quiz info, questions, etc to the server
-    fun createQuiz() {
-
+    fun editOption(optionIdx: Int) {
+        _currentQuestionDraft.update {
+            val options = _currentQuestionDraft.value.options.toMutableList().also { options ->
+                options[optionIdx] = options[optionIdx].copy(text = optionTextState.text.toString())
+            }
+            it.copy(options = options)
+        }
     }
 
+    fun addOption() {
+        // If the text field loses focus, it adds the current text to the draft
+        // then adds the draft to the state
+        _currentQuestionDraft.update {
+            it.copy(options = it.options + OptionDraft())
+        }
+    }
+
+    fun setCorrectOption(optionId: Int, isDraft: Boolean = true, questionIndex: Int = 0) {
+        if (isDraft) {
+            _currentQuestionDraft.update {
+                it.copy(correctOptionId = optionId)
+            }
+        } else {
+            _createViewModelState.update {
+                val data = (it.status as? DataStatus.Available)?.data ?: return@update it
+                val updatedQuestions = data.questions.toMutableList().also { questions ->
+                    questions[questionIndex] = questions[questionIndex].copy(correctOptionId = optionId)
+                }
+                it.onSuccess(
+                    data.copy(questions = updatedQuestions)
+                )
+            }
+        }
+    }
+
+    fun selectQuestionCategory(category: String) {
+        _currentQuestionDraft.update { it.copy(category = category) }
+    }
+
+
+    fun selectVisibility(visibility: String) {
+        _createViewModelState.update { currentState ->
+            when (val status = currentState.status) {
+                is DataStatus.Empty -> currentState // unreachable, init always set Available
+                is DataStatus.Available -> currentState.onSuccess(
+                    status.data.copy(
+                        quizInformation = status.data.quizInformation.copy(
+                            visibility = visibility
+                        )
+                    )
+                )
+            }
+        }
+    }
+
+
+    fun addQuestionCategory(category: String) {
+        _createViewModelState.update { currentState ->
+            when (val status = currentState.status) {
+                is DataStatus.Empty -> currentState.onSuccess(
+                    QuizDraft(quizInformation = QuizInformationDraft(questionCategories = listOf(category))
+                ))
+                is DataStatus.Available -> {
+                    val updatedQuizInfo = status.data.quizInformation.copy(
+                        questionCategories = status.data.quizInformation.questionCategories + category // ← new list
+                    )
+                    currentState.onSuccess(status.data.copy(quizInformation = updatedQuizInfo))
+                }
+            }
+        }
+    }
+
+
+    fun deleteQuestionCategory(category: String) {
+        _createViewModelState.update { currentState ->
+            when (val status = currentState.status) {
+                is DataStatus.Empty -> currentState
+                is DataStatus.Available -> {
+                    val updatedQuizInfo = status.data.quizInformation.copy(
+                        questionCategories = status.data.quizInformation.questionCategories - category
+                    )
+                    currentState.onSuccess(status.data.copy(quizInformation = updatedQuizInfo))
+                }
+            }
+        }
+    }
+
+    // Adds question to the viewModelState
+    fun saveQuestion(questionIndex: Int = 0) {
+        // Add
+        val draft = _currentQuestionDraft.value.copy(
+                text = questionTextState.text.toString())
+
+        _createViewModelState.update { currentState ->
+            val data = (currentState.status as? DataStatus.Available)?.data ?: return@update currentState
+            val updatedQuestions = if (_selectedQuestion.value == null) {
+                data.questions + draft
+            } else {
+                data.questions.toMutableList().also { questions ->
+                    questions[questionIndex] = questions[questionIndex].copy(
+                        text = draft.text,
+                        category = draft.category,
+                        correctOptionId = draft.correctOptionId,
+                        options = draft.options
+                    )
+                }
+            }
+            currentState.onSuccess(
+                data.copy(questions = updatedQuestions)
+            )
+        }
+        _currentQuestionDraft.value = QuestionDraft()
+        questionTextState.clearText()
+    }
+
+    fun openExistingQuestion(questionDraft: QuestionDraft) {
+        _selectedQuestion.value = questionDraft
+        _currentQuestionDraft.value = questionDraft
+        questionTextState.edit {
+            replace(0, length, questionDraft.text)
+        }
+    }
+
+    fun openNewQuestion() {
+        if (_selectedQuestion.value != null) {
+            _currentQuestionDraft.value = QuestionDraft()
+            questionTextState.edit {
+                replace(0, length, "")
+            }
+        }
+        _selectedQuestion.value = null
+    }
+
+    fun clearQuestionDraft() {
+        _selectedQuestion.value = null
+        questionTextState.edit {
+            replace(0, length, "")
+        }
+    }
+
+
+    // Uploads quiz info, questions, etc to the server
+    fun createQuiz() {
+        // Log data
+
+
+        if (!validateInput()) { return } //  validateInput returns the error messages
+
+        val data = (_createViewModelState.value.status as? DataStatus.Available)?.data!!
+
+        Log.d("CREATE", "Quiz name: ${quizNameState.text}")
+        Log.d("CREATE", "Visibility: ${data.quizInformation.visibility}")
+        Log.d("CREATE", "Question categories: ${data.quizInformation.questionCategories}")
+        data.questions.forEach { question ->
+            Log.d("CREATE", "Question name: ${question.text}")
+            Log.d("CREATE", "Question category: ${question.category}")
+            Log.d("CREATE", "Question type: ${question.type}")
+            Log.d("CREATE", "Question correct option: ${question.correctOptionId}")
+
+            question.options.forEach { option ->
+                Log.d("CREATE", "Option name: ${option.text}")
+            }
+
+        }
+
+        // Save
+        viewModelScope.launch {
+            networkRepository.createQuiz(data)
+        }
+
+        clearQuestionDraft()
+    }
+
+    private fun validateInput(): Boolean {
+        val errors = mutableListOf<ValidationError>()
+
+        when (val state = _createViewModelState.value.status) {
+            is DataStatus.Empty -> {
+                errors.add(ValidationError.EmptyQuizName)
+            }
+            is DataStatus.Available -> {
+                val data = state.data
+
+                if (quizNameState.text.isEmpty()) {
+                    errors.add(ValidationError.EmptyQuizName)
+                }
+                if (data.questions.isEmpty()) {
+                    errors.add(ValidationError.NoQuestions)
+                }
+
+                data.questions.forEachIndexed { index, draft ->
+                    if (draft.text.isEmpty()) errors.add(ValidationError.EmptyQuestionText)
+                    if (draft.correctOptionId == -1) errors.add(ValidationError.NoCorrectOptionSelected(index))
+                    draft.options.forEach { option ->
+                        if (option.text.isEmpty()) errors.add(ValidationError.EmptyOptionText)
+                    }
+                }
+
+                val updatedQuestions = data.questions.map {
+                    if (it.category.isEmpty()) {
+                        it.copy(type = "SINGLE_OPTION", category = "None")
+                    } else {
+                        it.copy(type = "SINGLE_OPTION")
+                    }
+                }
+
+                val updatedCategories = if (data.quizInformation.questionCategories.isEmpty()) {
+                    listOf("None")
+                } else {
+                    data.questions.distinctBy { it.category }.map { q -> q.category }
+                }
+
+                _createViewModelState.update { currentState ->
+                    currentState.onSuccess(
+                        data.copy(
+                            quizInformation = data.quizInformation.copy(
+                                name = quizNameState.text.toString(),
+                                questionCategories = updatedCategories
+                            ),
+                            questions = updatedQuestions
+                        )
+                    )
+                }
+            }
+        }
+        _validationErrors.value = errors
+        return errors.isEmpty()
+    }
+
+    // Option1: If the user navigates elsewhere, create a memo
+    // Option2: Only show a verification message that the form data will be lost
     override fun onCleared() {
         super.onCleared()
         // TODO: Create a draft

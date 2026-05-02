@@ -1,5 +1,6 @@
 package com.example.questionaire.feature.quizCategory
 
+import android.util.Log
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -34,6 +35,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +51,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -59,6 +62,7 @@ import com.example.questionaire.components.common.EmptyScreen
 import com.example.questionaire.components.common.ErrorScreen
 import com.example.questionaire.components.common.LoadingState
 import com.example.questionaire.model.DetailedQuizInfo
+import com.example.questionaire.model.PublicUserInfo
 import com.example.questionaire.utils.UIState
 import com.example.questionaire.utils.hasError
 import com.example.questionaire.utils.isRefreshing
@@ -111,13 +115,15 @@ private fun QuizInformationContent(
     modifier: Modifier = Modifier
 ) {
     var selectedCategory by remember { mutableStateOf<String?>(null) }
-    var sheetCategory by remember { mutableStateOf<String?>(null) }
+    var sheetCategory by remember { mutableStateOf<Pair<String, String>?>(null) }
 
-    val allCategories = listOf("All") + quizInformation.questionCategories
-    val visibleCategories = if (selectedCategory == null || selectedCategory == "All") {
-        quizInformation.questionCategories
+    val allCategories = listOf("ALL") + quizInformation.questionCategories
+    val zippedCategories = allCategories.zip(listOf("All") + quizInformation.categoriesDisplayName)
+
+    val visibleCategories = if (selectedCategory == null || selectedCategory == "ALL") {
+        zippedCategories
     } else {
-        quizInformation.questionCategories.filter { it == selectedCategory }
+        zippedCategories.filter { it.first == selectedCategory }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -136,8 +142,8 @@ private fun QuizInformationContent(
             // ── Category filter chips ─────────────────────────────────────
             item {
                 CategoryFilterRow(
-                    categories = allCategories,
-                    selected = selectedCategory ?: "All",
+                    categories = zippedCategories,
+                    selected = selectedCategory ?: "ALL",
                     onSelect = { selectedCategory = it }
                 )
             }
@@ -145,11 +151,11 @@ private fun QuizInformationContent(
             item { Spacer(Modifier.height(8.dp)) }
 
             // ── Category cards ────────────────────────────────────────────
-            items(visibleCategories) { category ->
+            items(visibleCategories) { (categoryName, displayName) ->
                 QuizCategoryCard(
                     drawable = R.drawable.hunting_practices,
-                    text = category,
-                    onClick = { sheetCategory = category }
+                    text = displayName,
+                    onClick = { sheetCategory = Pair(categoryName, displayName) }
                 )
             }
 
@@ -166,7 +172,7 @@ private fun QuizInformationContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f))
-                    .clickable { sheetCategory = null }
+                    .clickable { sheetCategory != null }
             )
         }
 
@@ -185,12 +191,8 @@ private fun QuizInformationContent(
         ) {
             sheetCategory?.let { category ->
                 CategoryDetailSheet(
-                    category = category,
-                    collectionId = quizInformation.collectionId,
-                    onPlay = { collectionId, cat ->
-                        sheetCategory = null
-                        onNavigateToQuiz(collectionId, cat)
-                    },
+                    categoryDisplayName = category.second,
+                    onPlay = { onNavigateToQuiz(quizInformation.collectionId, category.first) },
                     onDismiss = { sheetCategory = null }
                 )
             }
@@ -293,7 +295,7 @@ private fun StatChip(label: String, value: String) {
 
 @Composable
 private fun CategoryFilterRow(
-    categories: List<String>,
+    categories: List<Pair<String, String>>,
     selected: String,
     onSelect: (String) -> Unit
 ) {
@@ -304,12 +306,12 @@ private fun CategoryFilterRow(
             .padding(horizontal = 20.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        categories.forEach { category ->
-            val isSelected = category == selected
+        categories.forEach { (categoryName, displayName) ->
+            val isSelected = categoryName == selected
             val animatedAlpha by animateFloatAsState(
                 targetValue = if (isSelected) 1f else 0f,
                 animationSpec = tween(200),
-                label = "chip_alpha_$category"
+                label = "chip_alpha_$categoryName"
             )
 
             Box(
@@ -319,11 +321,11 @@ private fun CategoryFilterRow(
                         if (isSelected) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.surfaceVariant
                     )
-                    .clickable { onSelect(category) }
+                    .clickable { onSelect(categoryName) }
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = category,
+                    text = displayName,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (isSelected) MaterialTheme.colorScheme.onPrimary
@@ -406,9 +408,8 @@ private fun QuizCategoryCard(
 
 @Composable
 private fun CategoryDetailSheet(
-    category: String,
-    collectionId: String,
-    onPlay: (String, String) -> Unit,
+    categoryDisplayName: String,
+    onPlay: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -450,7 +451,7 @@ private fun CategoryDetailSheet(
 
         // Category name
         Text(
-            text = category,
+            text = categoryDisplayName,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -466,7 +467,7 @@ private fun CategoryDetailSheet(
 
         // Play button
         Button(
-            onClick = { onPlay(collectionId, category) },
+            onClick = onPlay,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
@@ -487,5 +488,30 @@ private fun CategoryDetailSheet(
                 fontWeight = FontWeight.SemiBold
             )
         }
+    }
+}
+
+@Preview
+@Composable
+fun QuizHeroHeaderPreview() {
+    val quizInformationDummy = DetailedQuizInfo(
+        id = "77477ebc-e1f7-45c3-8e5c-16582bf51ab3",
+        name = "Hunting",
+        collectionId = "quiz_94c1b44a-bb30-42e2-a28b-661e4d72ffda",
+        visibility = "Public",
+        displayImageUrl = "",
+        author = PublicUserInfo(
+            username = "peterrr",
+            createdAt = "2026-05-02T17:36:57.472Z"
+        ),
+        questionCategories = listOf(
+            "JOGI_ES_IGAZGATASI_KERDESEK",
+            "VADASZATI_ALLATTAN"
+        ),
+        categoriesDisplayName = listOf("Jogi és igazgatási kérdések",
+            "Vadászati állattan")
+    )
+    MaterialTheme {
+        QuizHeroHeader(quizInformationDummy)
     }
 }

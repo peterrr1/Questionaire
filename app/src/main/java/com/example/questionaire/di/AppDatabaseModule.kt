@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.example.questionaire.data.local.AppDatabase
 import com.example.questionaire.data.local.converter.QuizConverters
 import com.example.questionaire.data.local.dao.QuizAttemptDao
+import com.example.questionaire.utils.constants.AppConstants
 import com.squareup.moshi.Moshi
 import dagger.Module
 import dagger.Provides
@@ -22,12 +23,12 @@ class AppDatabaseModule {
         @ApplicationContext app: Context,
         moshi: Moshi
     ): AppDatabase {
-        //app.deleteDatabase("dev_db")
+        //app.deleteDatabase(AppConstants.DEV_DB_NAME)
 
         return Room.databaseBuilder(
             app,
             AppDatabase::class.java,
-            "dev_db"
+            AppConstants.DEV_DB_NAME
         )
             .addTypeConverter(QuizConverters(moshi))
             .fallbackToDestructiveMigration(true).build()

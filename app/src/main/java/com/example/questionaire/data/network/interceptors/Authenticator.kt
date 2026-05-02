@@ -12,6 +12,7 @@ import okhttp3.Authenticator
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
+import okio.IOException
 import javax.inject.Inject
 
 class TokenAuthenticator @Inject constructor(
@@ -28,7 +29,7 @@ class TokenAuthenticator @Inject constructor(
             val refreshResponse = runBlocking { authApiService.get().refresh("Bearer $refreshToken") }
 
             if (refreshResponse.success) {
-                val data = refreshResponse.data
+                val data = refreshResponse.data ?: throw IOException("No data was sent.")
                 Log.d("TOKEN_AUTH", "Request is successful.")
                 runBlocking {
                     tokenManager.saveToken(data.accessToken, TokenType.ACCESS_TOKEN)

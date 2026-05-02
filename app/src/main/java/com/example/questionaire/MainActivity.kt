@@ -61,8 +61,8 @@ data class QuizInformation(val type: String): NavKey, TitledNavKey {
     companion object
 }
 @Serializable
-data class Quiz(val collectionId: String, val category: String): NavKey, TitledNavKey {
-    override val title = category
+data class Quiz(val collectionId: String, val categoryDisplayName: String): NavKey, TitledNavKey {
+    override val title = categoryDisplayName
 }
 
 @Serializable
@@ -152,6 +152,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+
                     NavDisplay(
                         modifier = Modifier.padding(innerPadding),
                         entryDecorators = listOf(
@@ -180,7 +181,7 @@ class MainActivity : ComponentActivity() {
                             }
                             entry<Quiz> { key ->
                                 QuizScreen(
-                                    params = QuizRouteParams(key.collectionId, key.category),
+                                    params = QuizRouteParams(key.collectionId, key.categoryDisplayName),
                                     onFinished = {
                                         backStack.removeLastOrNull()
                                         backStack.add(Summary)

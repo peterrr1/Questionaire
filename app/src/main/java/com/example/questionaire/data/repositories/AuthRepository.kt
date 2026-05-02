@@ -8,6 +8,7 @@ import com.example.questionaire.utils.managers.TokenManager
 import com.example.questionaire.utils.managers.TokenType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okio.IOException
 import javax.inject.Inject
 
 class AuthRepository @Inject constructor(
@@ -20,7 +21,7 @@ class AuthRepository @Inject constructor(
                 println("LOGIN")
                 val response = authApiService.login(LoginRequestDto(email, password))
                 if (response.success) {
-                    val data = response.data
+                    val data = response.data ?: throw IOException("No data was sent.")
                     println("RESPONSE TOKEN: ${data.refreshToken}")
                     val token = tokenManager.getToken(TokenType.ACCESS_TOKEN)
                     Log.d("AUTH", "Emitted token: $token")
@@ -29,7 +30,7 @@ class AuthRepository @Inject constructor(
                     tokenManager.saveToken(data.refreshToken, TokenType.REFRESH_TOKEN)
                     Result.Success(Unit)
                 } else {
-                    Result.Error(okio.IOException("Login failed: ${response.statusCode}"))
+                    Result.Error(IOException("Login failed: ${response.statusCode}"))
                 }
             } catch (error: Exception) {
                 Result.Error(error)

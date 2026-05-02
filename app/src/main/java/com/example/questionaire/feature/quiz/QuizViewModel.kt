@@ -60,7 +60,12 @@ class QuizViewModel @AssistedInject constructor(
 
 
     init {
-        loadQuestionCategoryFromNetworkAPI(params.collectionId, params.category)
+        if (params.category == "ALL") {
+            loadQuestionCategoryFromNetworkAPI(params.collectionId)
+        } else {
+            loadQuestionCategoryFromNetworkAPI(params.collectionId, params.category)
+        }
+
     }
 
 
@@ -73,7 +78,7 @@ class QuizViewModel @AssistedInject constructor(
             endTime = null
         )
 
-    private fun loadQuestionCategoryFromNetworkAPI(type: String, category: String) {
+    private fun loadQuestionCategoryFromNetworkAPI(type: String, category: String? = null) {
         _quizViewModelState.update { it.loading() }
 
         viewModelScope.launch {
