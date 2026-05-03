@@ -37,6 +37,23 @@ class NetworkRepository @Inject constructor(
         }
     }
 
+    suspend fun deleteQuiz(quizId: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+
+                val response = quizApiService.deleteQuiz(quizId)
+                if (response.success) {
+                    Result.Success(data = Unit)
+                }
+                else {
+                    Result.Error(exception = IOException("An error occurred during quiz deletion."))
+                }
+            } catch (e: Exception) {
+                Result.Error(exception = IOException("An error occurred during quiz deletion: ${e.message}"))
+            }
+        }
+    }
+
     suspend fun getQuestions(quizId: String, category: String?): Result<List<Question>> {
         return withContext(Dispatchers.IO) {
             try {

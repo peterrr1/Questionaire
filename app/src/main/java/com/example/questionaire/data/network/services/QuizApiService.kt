@@ -8,6 +8,7 @@ import com.example.questionaire.data.network.dto.QuestionDto
 import com.example.questionaire.data.network.dto.QuizDraftDto
 import com.example.questionaire.model.QuizDraft
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -28,4 +29,7 @@ interface QuizApiService {
 
     @POST(value = "quiz/create")
     suspend fun createQuiz(@Body quizDraft: QuizDraftDto): ApiResponse<Any?>
+
+    @DELETE(value = "quiz/delete/{quiz_id}")
+    suspend fun deleteQuiz(@Path("quiz_id") quizId: String): ApiResponse<Any?>
 }

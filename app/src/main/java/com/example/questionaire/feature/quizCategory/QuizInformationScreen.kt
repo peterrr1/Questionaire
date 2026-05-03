@@ -10,6 +10,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,8 +18,12 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,11 +38,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,9 +57,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,16 +74,21 @@ import com.example.questionaire.components.common.ErrorScreen
 import com.example.questionaire.components.common.LoadingState
 import com.example.questionaire.model.DetailedQuizInfo
 import com.example.questionaire.model.PublicUserInfo
+import com.example.questionaire.theme.HuntingQuizTheme
 import com.example.questionaire.utils.UIState
 import com.example.questionaire.utils.hasError
 import com.example.questionaire.utils.isRefreshing
-
-// ── Entry point ───────────────────────────────────────────────────────────────
+import java.text.SimpleDateFormat
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlin.time.Instant
 
 @Composable
 fun QuizInformationScreen(
     type: String,
     onNavigateToQuiz: (String, String) -> Unit,
+    onDeleteRedirect: () -> Unit,
     quizCategoryViewModel: QuizInformationViewModel = hiltViewModel<QuizInformationViewModel, QuizInformationViewModel.Factory> { factory ->
         factory.create(type = type)
     }
@@ -99,7 +115,11 @@ fun QuizInformationScreen(
             ) {
                 QuizInformationContent(
                     quizInformation = state.data,
-                    onNavigateToQuiz = onNavigateToQuiz
+                    onNavigateToQuiz = onNavigateToQuiz,
+                    onDelete = {
+                        quizCategoryViewModel.deleteQuiz(state.data.id)
+                        onDeleteRedirect()
+                    }
                 )
             }
         }
@@ -112,6 +132,7 @@ fun QuizInformationScreen(
 private fun QuizInformationContent(
     quizInformation: DetailedQuizInfo,
     onNavigateToQuiz: (String, String) -> Unit,
+    onDelete: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedCategory by remember { mutableStateOf<String?>(null) }
@@ -136,7 +157,10 @@ private fun QuizInformationContent(
         ) {
             // ── Hero header ───────────────────────────────────────────────
             item {
-                QuizHeroHeader(quizInformation = quizInformation)
+                QuizHeroHeader(
+                    onDelete = onDelete,
+                    quizInformation = quizInformation
+                )
             }
 
             // ── Category filter chips ─────────────────────────────────────
@@ -203,71 +227,165 @@ private fun QuizInformationContent(
 // ── Hero header ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun QuizHeroHeader(quizInformation: DetailedQuizInfo) {
-    Column(
+private fun QuizHeroHeader(
+    quizInformation: DetailedQuizInfo,
+    onDelete: () -> Unit = {},
+    onEdit: () -> Unit = {},
+) {
+    Box(
         modifier = Modifier
+            .background(MaterialTheme.colorScheme.background)
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(16.dp)
     ) {
-        // Visibility badge
-        Box(
+        Row (
             modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+                .clip(RoundedCornerShape(20.dp))
+                .background(MaterialTheme.colorScheme.inverseOnSurface)
+                .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 24.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Text(
-                text = quizInformation.visibility.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                letterSpacing = 1.2.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        // Quiz name
-        Text(
-            text = quizInformation.name,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            lineHeight = 32.sp
-        )
-
-        // Author row
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Box(
+            Column(
                 modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
+                    .weight(1f)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = quizInformation.author.username.take(1).uppercase(),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Text(
-                text = quizInformation.author.username,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+                // Visibility badge
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = quizInformation.visibility.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        letterSpacing = 1.2.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
 
-        // Stats row
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            StatChip(
-                label = "Categories",
-                value = "${quizInformation.questionCategories.size}"
+                // Quiz name
+                Text(
+                    text = quizInformation.name,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 32.sp
+                )
+
+                // Author row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = quizInformation.author.username.take(1).uppercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = quizInformation.author.username,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+                    val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+                    val date = inputFormat.parse(quizInformation.author.createdAt)
+                    val formatted = outputFormat.format(date!!)
+
+                    StatChip(
+                        label = "Created at:",
+                        value = formatted
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(end = 20.dp, top = 8.dp),
+                    color = MaterialTheme.colorScheme.secondary,
+                )
+                if (quizInformation.editable) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(end = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.background,
+                                contentColor = MaterialTheme.colorScheme.onBackground
+                            ),
+                            border = BorderStroke(
+                                width = 2.dp, MaterialTheme.colorScheme.tertiary
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 0.dp,
+                                pressedElevation = 0.dp
+                            ),
+                            onClick = onEdit,
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+                        ) {
+                            Text(
+                                style = MaterialTheme.typography.labelSmall,
+                                text = "Edit"
+                            )
+                        }
+                        Button(
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.background,
+                                contentColor = MaterialTheme.colorScheme.onBackground
+                            ),
+                            border = BorderStroke(
+                                width = 2.dp, MaterialTheme.colorScheme.error
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 0.dp,
+                                pressedElevation = 0.dp
+                            ),
+                            onClick = onDelete,
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+                        ) {
+                            Text(
+                                style = MaterialTheme.typography.labelSmall,
+                                text = "Delete"
+                            )
+                        }
+                    }
+                }
+            }
+            VerticalDivider(color = MaterialTheme.colorScheme.secondary)
+            Image(
+                painter = painterResource(R.drawable.placeholder),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(start = 20.dp)
+                    .clip(RoundedCornerShape(20.dp))
             )
         }
     }
@@ -277,16 +395,16 @@ private fun QuizHeroHeader(quizInformation: DetailedQuizInfo) {
 private fun StatChip(label: String, value: String) {
     Column {
         Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             letterSpacing = 0.8.sp
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -491,7 +609,7 @@ private fun CategoryDetailSheet(
     }
 }
 
-@Preview
+@Preview(showBackground = true, uiMode = UI_MODE_NIGHT_YES)
 @Composable
 fun QuizHeroHeaderPreview() {
     val quizInformationDummy = DetailedQuizInfo(
@@ -511,7 +629,7 @@ fun QuizHeroHeaderPreview() {
         categoriesDisplayName = listOf("Jogi és igazgatási kérdések",
             "Vadászati állattan")
     )
-    MaterialTheme {
+    HuntingQuizTheme {
         QuizHeroHeader(quizInformationDummy)
     }
 }

@@ -50,6 +50,12 @@ class QuizInformationViewModel @AssistedInject constructor(
         loadData(quizId)
     }
 
+    fun deleteQuiz(quizId: String) {
+        viewModelScope.launch {
+            networkRepository.deleteQuiz(quizId)
+        }
+    }
+
     private fun loadData(quizId: String) {
         _quizInfoViewModelState.update { it.loading() }
 

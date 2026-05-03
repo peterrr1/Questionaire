@@ -32,7 +32,6 @@ class TokenManager(private val context: Context) {
         }
     }
 
-
     suspend fun saveToken(token: String, type: TokenType) {
         val key = if (type == TokenType.ACCESS_TOKEN) ACCESS_TOKEN else REFRESH_TOKEN
         context.dataStore.edit { it[key] = token }

@@ -99,7 +99,8 @@ data class DetailedQuizInfo(
     val displayImageUrl: String = "",
     val author: PublicUserInfo = PublicUserInfo(),
     val questionCategories: List<String> = emptyList(),
-    val categoriesDisplayName: List<String> = emptyList()
+    val categoriesDisplayName: List<String> = emptyList(),
+    val editable: Boolean = false
 )
 
 data class CompactQuizInfo(

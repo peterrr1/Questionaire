@@ -38,6 +38,7 @@ import com.example.questionaire.feature.quiz.QuizRouteParams
 import com.example.questionaire.feature.quiz.QuizScreen
 import com.example.questionaire.feature.quizCategory.QuizInformationScreen
 import com.example.questionaire.feature.quizSummary.QuizSummaryScreen
+import com.example.questionaire.model.DetailedQuizInfo
 import com.example.questionaire.theme.HuntingQuizTheme
 import com.example.questionaire.utils.managers.TokenManager
 import com.example.questionaire.utils.managers.TokenType
@@ -177,6 +178,10 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToQuiz = { type, category ->
                                         backStack.add(Quiz(type, category))
                                     },
+                                    onDeleteRedirect = {
+                                        backStack.clear()
+                                        backStack.add(Home)
+                                    }
                                 )
                             }
                             entry<Quiz> { key ->

@@ -30,7 +30,8 @@ data class DetailedQuizInfoDto(
     @param:Json(name = "visibility") val visibility: String,
     @param:Json(name = "author") val author: PublicUserInfoDto,
     @param:Json(name = "question_categories") val questionCategories: List<String>,
-    @param:Json(name = "categories_display_name") val categoriesDisplayName: List<String>
+    @param:Json(name = "categories_display_name") val categoriesDisplayName: List<String>,
+    @param:Json(name = "editable") val editable: Boolean
 ) {
     fun toDomain(): DetailedQuizInfo {
         return DetailedQuizInfo(
@@ -40,7 +41,8 @@ data class DetailedQuizInfoDto(
             visibility = visibility,
             author = author.toDomain(),
             questionCategories = questionCategories,
-            categoriesDisplayName = categoriesDisplayName
+            categoriesDisplayName = categoriesDisplayName,
+            editable = editable
         )
     }
 }
