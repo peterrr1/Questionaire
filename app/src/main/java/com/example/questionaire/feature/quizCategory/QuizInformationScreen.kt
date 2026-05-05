@@ -89,6 +89,7 @@ fun QuizInformationScreen(
     type: String,
     onNavigateToQuiz: (String, String) -> Unit,
     onDeleteRedirect: () -> Unit,
+    onEditRedirect: (String) -> Unit,
     quizCategoryViewModel: QuizInformationViewModel = hiltViewModel<QuizInformationViewModel, QuizInformationViewModel.Factory> { factory ->
         factory.create(type = type)
     }
@@ -119,7 +120,8 @@ fun QuizInformationScreen(
                     onDelete = {
                         quizCategoryViewModel.deleteQuiz(state.data.id)
                         onDeleteRedirect()
-                    }
+                    },
+                    onEdit = { onEditRedirect(state.data.id) }
                 )
             }
         }
@@ -133,6 +135,7 @@ private fun QuizInformationContent(
     quizInformation: DetailedQuizInfo,
     onNavigateToQuiz: (String, String) -> Unit,
     onDelete: () -> Unit = {},
+    onEdit: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedCategory by remember { mutableStateOf<String?>(null) }
@@ -159,7 +162,8 @@ private fun QuizInformationContent(
             item {
                 QuizHeroHeader(
                     onDelete = onDelete,
-                    quizInformation = quizInformation
+                    quizInformation = quizInformation,
+                    onEdit = onEdit
                 )
             }
 

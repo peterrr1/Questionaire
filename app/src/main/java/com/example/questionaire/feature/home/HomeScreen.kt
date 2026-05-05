@@ -1,5 +1,6 @@
 package com.example.questionaire.feature.home
 
+import android.util.Log
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -22,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +47,8 @@ import com.example.questionaire.model.CompactQuizInfo
 import com.example.questionaire.utils.UIState
 import com.example.questionaire.utils.hasError
 import com.example.questionaire.utils.isRefreshing
+import kotlinx.coroutines.flow.MutableStateFlow
+import androidx.compose.runtime.collectAsState
 
 
 /*
@@ -59,8 +63,16 @@ Also the user can sort by quiz categories
 @Composable
 fun HomeScreen(
     navigateToQuizType: (String) -> Unit,
+    triggerReload: MutableStateFlow<Boolean>,
     homeViewModel: HomeViewModel = hiltViewModel()
 ) {
+
+    val reload by triggerReload.collectAsStateWithLifecycle()
+    Log.d("HOME-SCREEN", "$triggerReload")
+
+    if (reload) {
+        homeViewModel.reloadData()
+    }
 
     val uiState: UIState<List<CompactQuizInfo>> by homeViewModel.uiState.collectAsStateWithLifecycle()
 

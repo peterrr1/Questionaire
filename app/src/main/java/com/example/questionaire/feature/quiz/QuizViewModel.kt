@@ -78,11 +78,11 @@ class QuizViewModel @AssistedInject constructor(
             endTime = null
         )
 
-    private fun loadQuestionCategoryFromNetworkAPI(type: String, category: String? = null) {
+    private fun loadQuestionCategoryFromNetworkAPI(collectionId: String, category: String? = null) {
         _quizViewModelState.update { it.loading() }
 
         viewModelScope.launch {
-            val result = networkRepository.getQuestions(type, category)
+            val result = networkRepository.getQuestions(collectionId, category)
             _quizViewModelState.update {
                 when (result) {
                     is Result.Success -> it.onSuccess(result.data)

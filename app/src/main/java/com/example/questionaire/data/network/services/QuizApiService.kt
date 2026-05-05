@@ -21,9 +21,9 @@ interface QuizApiService {
     @GET(value = "quiz/info/{quiz_id}")
     suspend fun getQuizInfo(@Path("quiz_id") quizId: String): ApiResponse<DetailedQuizInfoDto>
 
-    @GET(value = "quiz/questions/{quiz_id}")
+    @GET(value = "quiz/questions/{collection_id}")
     suspend fun getQuestions(
-        @Path("quiz_id") quizId: String,
+        @Path("collection_id") collectionId: String,
         @Query("category") category: String? = null
     ) : ApiResponse<List<QuestionDto>>
 

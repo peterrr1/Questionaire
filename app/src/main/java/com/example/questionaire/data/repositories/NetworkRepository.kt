@@ -54,11 +54,11 @@ class NetworkRepository @Inject constructor(
         }
     }
 
-    suspend fun getQuestions(quizId: String, category: String?): Result<List<Question>> {
+    suspend fun getQuestions(collectionId: String, category: String?): Result<List<Question>> {
         return withContext(Dispatchers.IO) {
             try {
                 val response = quizApiService.getQuestions(
-                    quizId = quizId,
+                    collectionId = collectionId,
                     category = category)
                 val data = response.data ?: throw IOException("Data field was not specified in the api response object.")
                 val result = data.map { it.toDomain() }

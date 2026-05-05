@@ -68,10 +68,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastCbrt
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.questionaire.Create
 import com.example.questionaire.R
+import com.example.questionaire.components.common.LoadingState
 import com.example.questionaire.model.Option
 import com.example.questionaire.model.OptionDraft
 import com.example.questionaire.model.Question
@@ -79,11 +82,17 @@ import com.example.questionaire.model.QuestionDraft
 import com.example.questionaire.model.QuizDraft
 import com.example.questionaire.model.QuizInformationDraft
 import com.example.questionaire.utils.UIState
+import java.sql.Time
+import java.util.Timer
 import java.util.UUID
 
 @Composable
 fun CreateScreen(
-    createViewModel: CreateViewModel = hiltViewModel()
+    quizId: String?,
+    onSubmit: (Boolean) -> Unit,
+    createViewModel: CreateViewModel = hiltViewModel<CreateViewModel, CreateViewModel.Factory> { factory ->
+        factory.create(quizId)
+    }
 ) {
     val uiState: UIState<QuizDraft> by createViewModel.uiState.collectAsStateWithLifecycle()
     val errors: List<ValidationError> by createViewModel.validationErrors.collectAsStateWithLifecycle()
@@ -99,6 +108,16 @@ fun CreateScreen(
     var selectedQuestionIndex = 0
 
     val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(createViewModel.submitStatus) {
+        if (createViewModel.submitStatus is SubmitStatus.Success) {
+            onSubmit(true)
+        }
+    }
+
+    if (createViewModel.submitStatus is SubmitStatus.Loading) {
+        LoadingState()
+    }
 
     Box(
         modifier = Modifier
@@ -288,7 +307,9 @@ fun CreateScreen(
 
             item {
                 Button(
-                    onClick = { createViewModel.createQuiz() },
+                    onClick = {
+                        createViewModel.createQuiz()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
@@ -700,12 +721,6 @@ fun CategoryAdderDialog(
     }
 }
 
-
-
-
-
-
-
 @Preview
 @Composable
 fun OptionCardPreview() {
@@ -727,8 +742,6 @@ fun OptionCardPreview() {
         }
     }
 }
-
-
 @Preview
 @Composable
 fun QuestionCardPreview() {

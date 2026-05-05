@@ -2,15 +2,25 @@ package com.example.questionaire.feature.create
 import android.util.Log
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.questionaire.data.repositories.NetworkRepository
+import com.example.questionaire.model.Option
 import com.example.questionaire.model.OptionDraft
 import com.example.questionaire.model.QuestionDraft
 import com.example.questionaire.model.QuizDraft
 import com.example.questionaire.model.QuizInformationDraft
 import com.example.questionaire.utils.DataStatus
+import com.example.questionaire.utils.ErrorMessage
+import com.example.questionaire.utils.Result
 import com.example.questionaire.utils.ViewModelState
+import dagger.Component
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -29,11 +39,25 @@ sealed class ValidationError {
     data class NoCorrectOptionSelected(val index: Int): ValidationError()
 }
 
+sealed interface SubmitStatus {
+    data object Idle: SubmitStatus
+    data object Loading: SubmitStatus
+    data object Success: SubmitStatus
+    data class Error(val message: String): SubmitStatus
+}
 
-@HiltViewModel
-class CreateViewModel @Inject constructor(
+
+@HiltViewModel(assistedFactory = CreateViewModel.Factory::class)
+class CreateViewModel @AssistedInject constructor(
+    @Assisted val quizId: String?,
     private val networkRepository: NetworkRepository
 ) : ViewModel() {
+
+    @AssistedFactory
+    interface Factory {
+        fun create(quizId: String?): CreateViewModel
+    }
+
     private val _createViewModelState = MutableStateFlow(
         ViewModelState<QuizDraft>(isLoading = true)
     )
@@ -51,6 +75,8 @@ class CreateViewModel @Inject constructor(
 
     val validationErrors = _validationErrors.asStateFlow()
 
+    var submitStatus by mutableStateOf<SubmitStatus>(SubmitStatus.Idle)
+        private set
 
     // TextField states
     // QuizName field
@@ -76,11 +102,54 @@ class CreateViewModel @Inject constructor(
 
 
     init {
-        _createViewModelState.update {
-            it.onSuccess(QuizDraft())
+        if (quizId == null) {
+            _createViewModelState.update {
+                it.onSuccess(QuizDraft())
+            }
+        } else {
+            loadQuizData(quizId)
         }
     }
 
+    private fun loadQuizData(quizId: String) {
+        _createViewModelState.update { it.loading() }
+
+        viewModelScope.launch {
+            _createViewModelState.update {
+                when (val quizInformationResult = networkRepository.getQuizInfo(quizId)) {
+                    is Result.Success -> {
+                        when (val questionsResult = networkRepository.getQuestions(quizInformationResult.data.collectionId, null)) {
+                            is Result.Success -> {
+                                quizNameState.edit {
+                                    replace(0, length, quizInformationResult.data.name)
+                                }
+                                it.onSuccess(
+                                    data = QuizDraft(
+                                        quizInformation = QuizInformationDraft(
+                                            name = quizInformationResult.data.name,
+                                            visibility = quizInformationResult.data.visibility,
+                                            questionCategories = quizInformationResult.data.questionCategories
+                                        ),
+                                        questions = questionsResult.data.map { question ->
+                                            QuestionDraft(
+                                                type = question.type,
+                                                category = question.category,
+                                                text = question.text,
+                                                options = question.options.map { option -> OptionDraft(option.text) },
+                                                correctOptionId = question.options.indexOfFirst { option -> option.id == question.correctOptionId } + 1
+                                            )
+                                        }
+                                    )
+                                )
+                            }
+                            is Result.Error -> it.onError(ErrorMessage(messageId = "An error occurred: QuizCategoryViewModel"))
+                        }
+                    }
+                    is Result.Error -> it.onError(ErrorMessage(messageId = "An error occurred: QuizCategoryViewModel"))
+                }
+            }
+        }
+    }
     fun editOption(optionIdx: Int) {
         _currentQuestionDraft.update {
             val options = _currentQuestionDraft.value.options.toMutableList().also { options ->
@@ -225,8 +294,6 @@ class CreateViewModel @Inject constructor(
     // Uploads quiz info, questions, etc to the server
     fun createQuiz() {
         // Log data
-
-
         if (!validateInput()) { return } //  validateInput returns the error messages
 
         val data = (_createViewModelState.value.status as? DataStatus.Available)?.data!!
@@ -248,7 +315,20 @@ class CreateViewModel @Inject constructor(
 
         // Save
         viewModelScope.launch {
-            networkRepository.createQuiz(data)
+            submitStatus = SubmitStatus.Loading
+            val result = networkRepository.createQuiz(data)
+            // Check whether it was successful or not
+            submitStatus = when (result) {
+                // If it was successful return to Home and trigger a reload
+                is Result.Success -> {
+                    SubmitStatus.Success
+                }
+                // if it wasn't display a network error message
+                is Result.Error -> SubmitStatus.Error(result.exception.message ?: "Some error occurred during quiz creation.")
+            }
+
+
+
         }
 
         clearQuestionDraft()
